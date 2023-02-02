@@ -1,0 +1,320 @@
+---
+title: "Figure 1 part1"
+author: "Axel Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# debug 
+library(tidyverse)
+require(moonBook)
+require(webr)
+library(ontologyIndex)
+library(ontologySimilarity)
+
+args=c("results/parse_table/all_cases.tsv",
+       "resources/hpo.obo", 
+       "resources/hpo_categorization_19_12_2022.tsv",
+       "../../" )
+
+args = commandArgs(trailingOnly=TRUE)
+
+depth<-args[4]
+in_file<-paste0(depth, args[1]) #
+hpo_obo<-paste0(depth, args[2]) #"ressources/hpo.obo"
+hpo_cat<-paste0(depth, args[3]) #"ressources/hpo_categorization_luisa_01_07_2021.txt"
+
+
+set.seed(1)
+
+hpo<-get_ontology(hpo_obo)
+all_cases<-read_tsv(in_file, guess_max = 2000, locale=locale(decimal_mark = ",")) %>%
+  distinct(case_ID_paper,.keep_all = TRUE) # remove double occuring cases (for security, should already be removed)
+
+
+hpo_luisa_definition<- read_tsv(hpo_cat) %>% distinct()
+```
+
+## 1b
+
+```{r donut_1b}
+
+print("count of cases:")
+
+print(nrow(all_cases %>% filter(!is.na(case_ID_paper))))
+
+count_dis_cat<-all_cases %>% group_by(disease_category) %>% 
+  summarise(count=n()) %>% 
+  arrange(-count)
+dis_cat_no_NA<-count_dis_cat[!is.na(count_dis_cat$disease_category),]
+(knitr::kable(dis_cat_no_NA))
+
+#all disease categories
+(knitr::kable(count_dis_cat))
+
+filtered_cases <- all_cases %>% 
+  filter(disease_category %in% dis_cat_no_NA$disease_category) %>%
+  filter(!is.na(adult_child)) %>% 
+  arrange(disease_category, adult_child) %>%
+  mutate(disease_category=factor(disease_category, levels=unique(disease_category)))
+
+dis_cat_no_NA_adult_child <- filtered_cases %>%  group_by(disease_category, adult_child) %>% summarise(count=n()) %>% arrange(-count)
+(knitr::kable(dis_cat_no_NA_adult_child))
+
+print("removing NA's!!")
+
+total_counts<-all_cases %>% 
+  filter(!is.na(adult_child))%>%
+  group_by(adult_child) %>% 
+  summarise(count=n())
+print("total counts, NA's removed: ")
+print(total_counts)
+donut_total<-PieDonut(total_counts,aes(adult_child, count=count),
+                      r0=0.6,start=0.3*pi,labelpositionThreshold=0.1)
+print(donut_total)
+ggsave(donut_total, file="donut_total.pdf")
+
+
+#########       RENAME DISEASE CATEGORY in TSV !!!! 
+proportions_donut<-filtered_cases %>% 
+  filter(!is.na(disease_category)) %>% 
+  group_by(disease_category, adult_child) %>%
+  summarise(count=n())
+
+
+donut1<-PieDonut(proportions_donut %>% filter(adult_child=="adult"),aes(disease_category, count=count), r0=0.7,start=3*pi/2,labelpositionThreshold=0.1)
+print(donut1)
+ggsave(donut1, file="donut_adult.pdf")
+
+donut2<-PieDonut(proportions_donut %>% filter(adult_child=="child"),aes(disease_category, count=count),
+         r0=0.7,start=3*pi/2,labelpositionThreshold=0.1)
+print(donut2)
+ggsave(donut2, file="donut_child.pdf")
+
+```
+
+## 1c
+
+```{r hpo_counts_1c}
+# prepare data:
+all_cases_unn<- all_cases
+
+all_cases_unn$HPO_Term_IDs <- all_cases$HPO_Term_IDs %>% 
+  str_replace_all(";","") %>% strsplit(split=" ") %>%
+  sapply(., function(x) unique(x)) 
+
+all_cases_unn<-all_cases_unn %>% unnest_longer(HPO_Term_IDs)
+
+all_cases_unn <- all_cases_unn %>% distinct(case_ID_paper, HPO_Term_IDs, .keep_all=TRUE) 
+
+print("number of HPO tems:")
+print(length(unique(all_cases_unn$HPO_Term_IDs)))
+
+count_hpo_p_patient<- all_cases_unn %>% 
+  group_by(case_ID_paper, solved) %>%
+  summarise(count_hpo=sum(!is.na(HPO_Term_IDs)))
+
+print(paste("mean HPO-count: ", round(mean(count_hpo_p_patient$count_hpo),4)))
+stratified_hpo_count<-count_hpo_p_patient %>% 
+  group_by(solved)%>%
+  summarize(mean_hpo_count=mean(count_hpo))
+knitr::kable(stratified_hpo_count)
+
+summarized_count_hpo<-count_hpo_p_patient %>%
+  group_by(count_hpo) %>%
+  mutate(total_count=n()) %>%
+  group_by(count_hpo, solved, total_count)%>%
+  summarize(count1=n()) %>%
+  mutate(proportion=count1/total_count) %>%
+  ungroup()
+
+count_hpo_pl4<-ggplot(summarized_count_hpo %>% distinct(count_hpo, total_count), aes(x=count_hpo, y=total_count)) + 
+  geom_bar(stat="identity") +
+  theme_minimal()
+print(count_hpo_pl4)
+
+ggsave(file="count_hpo_pl4.pdf", count_hpo_pl4, width=7, height=4.5)
+
+```
+
+
+
+
+```{r correlation_1d_DATA_PREP}
+
+
+all_cases_cor<-all_cases
+all_cases_cor$HPO_Term_IDs <- all_cases$HPO_Term_IDs %>% 
+  str_replace_all(";","") %>% strsplit(split=" ") %>%
+  sapply(., function(x) unique(x))
+
+
+
+# UNNEST
+#first unnest the HPO terms, add a counter as patient ID
+expanded_cases <- unnest_longer(all_cases_cor %>% 
+                                  mutate(patient_number=1:n()) %>%
+                                  group_by(disease_category) %>% 
+                                  add_count(name="count_disease_cat") %>% ungroup(), 
+                                col=HPO_Term_IDs)
+
+#HPO Count per person
+all_cases_cor <- all_cases_cor %>%
+  mutate(hpo_count=ifelse(is.na(HPO_Term_IDs),0,lengths(HPO_Term_IDs)))
+
+
+
+
+hpo_luisa_definition<-hpo_luisa_definition[complete.cases(hpo_luisa_definition),]
+
+# Subcategory is the exact category; Category is the parent category; Reformat:
+hpo_luisa_definition01 <- hpo_luisa_definition %>% # reformat exact categories
+  group_by(Subcategory) %>% 
+  summarise(HPO_terms = list(unique(HPO_term)))
+
+#add descendants
+#for (sub in 1:nrow(hpo_luisa_definition01)){
+#    for (term in hpo_luisa_definition01[[2]][[sub]]) {
+#    descendants<- get_descendants(hpo, term)
+#    hpo_luisa_definition01[[2]][[sub]]=c(hpo_luisa_definition01[[2]][[sub]],descendants)
+#    }
+#  hpo_luisa_definition01[[2]][[sub]]=unique(hpo_luisa_definition01[[2]][[sub]])
+#}
+
+hpo_luisa_definition02 <- hpo_luisa_definition %>% # reformat parent terms
+  group_by(Category) %>% 
+  summarise(HPO_terms = list(unique(HPO_term))) %>%
+  mutate(Subcategory=paste(Category,"_parental",sep="") ) %>% 
+  dplyr::select(-Category)
+
+#add descendants
+#for (sub in 1:nrow(hpo_luisa_definition02)){
+#    for (term in hpo_luisa_definition01[[1]][[sub]]) {
+#    descendants<- get_descendants(hpo, term)
+#    hpo_luisa_definition02[[1]][[sub]]=c(hpo_luisa_definition02[[1]][[sub]],descendants)
+#    }
+#  hpo_luisa_definition02[[1]][[sub]]=unique(hpo_luisa_definition02[[1]][[sub]])
+#}
+
+hpo_luisa_definition_comb<-rbind(hpo_luisa_definition01,hpo_luisa_definition02) %>% 
+  arrange(Subcategory) # combine exact categories and parental categories
+
+# assign patients to HPO categories from Luisa
+Subcategory<- lapply(hpo_luisa_definition_comb$HPO_terms, 
+                        function(x) {
+                          return(
+                            ifelse(all_cases_cor$case_ID_paper %in% 
+                                     (expanded_cases[expanded_cases$HPO_Term_IDs %in% unlist(x),]$case_ID_paper), 1, 0)
+                          )})
+
+Subcategory<- tibble(as.data.frame(Subcategory), .name_repair = ~ hpo_luisa_definition_comb$Subcategory) # add column names
+all_cases_cor<-cbind(all_cases_cor,Subcategory) # combine with full data set
+
+all_cases_cor <- all_cases_cor %>%
+  mutate(disease_category_table=disease_category)
+
+# check which HPO terms are in Luisas list
+uniq_hpos_patients<-unique(unlist(all_cases_cor$HPO_Term_IDs))
+
+hpos_missing<-tibble(
+  id=uniq_hpos_patients[!uniq_hpos_patients %in% unique(hpo_luisa_definition$HPO_term)]
+)
+
+get_hpo_name<-function(hpoID){
+  hpoName<-hpo$name[hpo$id==hpoID]
+  return(hpoName)
+}
+hpos_missing$name<-sapply(hpos_missing$id, get_hpo_name)
+
+print("HPOs not classified")
+knitr::kable(hpos_missing)
+
+```
+
+
+```{r correlation_1d_Corr}
+library(reshape2)
+
+#http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization
+
+for_cormat<-all_cases_cor %>% select(any_of(colnames(Subcategory)))
+
+for_cormat<-for_cormat[,grep("parental", colnames(for_cormat))]
+colnames(for_cormat) <- str_replace(colnames(for_cormat), "_parental", "") 
+cormat<-cor(for_cormat) 
+
+reorder_cormat <- function(cormat){
+# Use correlation between variables as distance
+dd <- as.dist((1-cormat))
+hc <- hclust(dd)
+print(plot(hc, cex=0.7))
+cormat <-cormat[hc$order, hc$order]
+}
+
+# Reorder the correlation matrix
+cormat_ordered <- reorder_cormat(cormat)
+
+melted_cormat <- melt(cormat_ordered, na.rm = TRUE)
+
+var2_levels <- unique(melted_cormat$Var2)
+print(var2_levels)
+var2_levels<-str_sort(var2_levels, numeric=TRUE)
+print(var2_levels)
+melted_cormat$Var2<-factor(melted_cormat$Var2, levels=var2_levels)
+melted_cormat$Var1<-factor(melted_cormat$Var1, levels=var2_levels)
+
+# Create a ggheatmap
+ggheatmap <- ggplot(melted_cormat, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, space = "Lab", 
+    name="Pearson\nCorrelation") +
+  theme_minimal()+ # minimal theme
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+   hjust = 1),   axis.title.x = element_blank(),
+  axis.title.y = element_blank())+
+   coord_fixed()
+# Print the heatmap
+print(ggheatmap)
+ggsave(ggheatmap, file="plot_correlation.pdf", height=4.5, width=7)
+
+
+for_cormat$disease_category=all_cases_cor$disease_category_table
+
+cor_between_groups<-melt(for_cormat) %>% 
+  group_by(variable, disease_category)%>%
+  summarize(value_mean=mean(value), count_dis_cat=n(), count_dis_cat_in_HPO = sum(value))%>%
+  #filter(count_dis_cat>10, variable!="12-others") %>% # just keep disease categories with > 50 cases
+  group_by(variable)%>%
+  mutate(max_hpovariable=max(value_mean))%>%
+  #filter(max_hpovariable>0.2)%>% # just keep hpovariables that are present in more than 20% in any dis. cat.
+  ungroup()%>%
+  arrange(count_dis_cat) %>%
+  mutate(variable=factor(variable, levels=var2_levels),
+         disease_category=factor(disease_category, levels=unique(disease_category)))
+
+plot_hpo_vs_disease_cat<-ggplot(cor_between_groups, aes(x = variable, y = disease_category, fill = value_mean)) +
+  geom_tile() +
+  scale_fill_viridis_c()+   #breaks=c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+  theme_minimal()+ # minimal theme
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+  hjust = 1),   axis.title.x = element_text(),
+  axis.title.y = element_blank())
+
+print(plot_hpo_vs_disease_cat)
+ggsave(plot_hpo_vs_disease_cat, file="plot_hpo_vs_disease_cat.pdf", height=4.5, width=7)
+
+(knitr::kable(cor_between_groups %>% mutate(value_mean=round(value_mean,3),
+                                           max_hpovariable=round(max_hpovariable,3)) %>%
+               dplyr::select(-max_hpovariable)))
+
+
+
+
+
+
+```
+
+
+

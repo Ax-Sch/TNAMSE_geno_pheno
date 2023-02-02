@@ -1,0 +1,412 @@
+configfile: "config/config.yaml"
+
+rule all:
+	input:
+		"results/parse_table/all_cases_red.tsv",
+		"results/figure1/figure1_part1.html",
+		"results/figure2/figure2_part1.html",
+		"results/figure5/figure5_lasso_analysis_TNAMSE_cohort.html",
+		"results/figure3/figure3.html",
+		"results/figure4/combined_gene_counts_years.tsv",
+		"results/figure4/figure4_finally_plot.html",
+		"results/supporting2_anno/output_tsv.tsv",
+		"results/supporting_pops/supp_population.html",
+		"results/supporting_autoz/supp_check_autozygosity.html",
+		"results/supporting_missense/supp_VUS_vs_solving_vars.html",
+		# the following two outputs require files from OMIM that need to be added to the resources folder.
+		# uncomment them if you have placed the files into the resources/ folder (see Readme). 
+		#"results/supporting_ccds/supp_CCDS_plot.html",
+		#"results/figure1/figure1_part2.html",
+
+rule parse_table:
+	input:
+		case_table=config["case_table"],
+		HGNC_table=config["HGNC"],
+		renaming_scheme=config["renaming"]
+	output:
+		"results/parse_table/all_cases.tsv",
+		"results/parse_table/all_cases_red.tsv",
+		"results/parse_table/all_monogenic_vars.tsv",
+		"results/parse_table/all_vars.tsv",
+		"results/parse_table/all_SV_CNV_vars.tsv",
+	params:
+		out_folder="results/parse_table",
+		depth="../../"
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/parse_table.Rmd {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('parse_table.Rmd', 'html_document')" \
+		{params.depth} \
+		"{input.case_table}" \
+		"{input.HGNC_table}" \
+		"{input.renaming_scheme}" \
+		{params.out_folder}
+		"""
+
+rule create_solved_gene_table:
+	input:
+		in_c="results/parse_table/all_cases_red.tsv",
+		in_v="results/parse_table/all_vars.tsv",
+		renaming="resources/renaming_inheritance.tsv",
+		candidates=config["novel_table"],
+	output:
+		"results/parse_table/diagnostic_vars.tsv",
+		"results/parse_table/VUS.tsv",
+		"results/parse_table/all_cases_wHighEvNovel.tsv",
+	params:
+		out_folder="results/parse_table",
+		depth="../../"
+	shell:
+		"""
+		cp workflow/scripts/supp_solved_cases.Rmd {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('supp_solved_cases.Rmd', 'html_document')" \
+		{input.in_c} \
+		{input.in_v} \
+		{input.renaming} \
+		{input.candidates} \
+		{params.depth}
+		""" 
+
+rule figure1_part1:
+	input:
+		in_f="results/parse_table/all_cases.tsv",
+		hpo="resources/hpo.obo",
+		cat="resources/hpo_categorization_19_12_2022.tsv",
+	output:
+		"results/figure1/figure1_part1.html",
+	params:
+		out_folder="results/figure1",
+		depth="../../"
+	shell:
+		"""
+		cp workflow/scripts/figure1_part1.Rmd {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('figure1_part1.Rmd', 'html_document')" \
+		{input.in_f} \
+		{input.hpo} \
+		{input.cat} \
+		{params.depth}
+		"""
+
+rule figure1_part2:
+	input:
+		in_f="results/parse_table/all_cases_wHighEvNovel.tsv",
+		hpo="resources/hpo.obo",
+		gtp="resources/genes_to_phenotype.txt",
+		tur="results/figure4/Turro_variant_table.txt"
+	output:
+		"results/figure1/figure1_part2.html"
+	params:
+		out_folder="results/figure1",
+		depth="../../"
+	shell:
+		"""
+		cp workflow/scripts/figure1_part2.R {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('figure1_part2.R', 'html_document')" \
+		{input.in_f} \
+		{input.hpo} \
+		{input.gtp} \
+		{input.tur} \
+		{params.depth} \
+		redo
+		""" 
+		
+rule figure2_part1:
+	input:
+		cases="results/parse_table/all_cases_wHighEvNovel.tsv",
+	output:
+		"results/figure2/figure2_part1.html",
+	params:
+		out_folder="results/figure2",
+		depth="../../"
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/figure2_part1.Rmd {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('figure2_part1.Rmd', 'html_document')" \
+		{input.cases} \
+		{params.depth}
+		""" 
+
+rule figure3:
+	input:
+		solv_vars="results/parse_table/diagnostic_vars.tsv",
+		renaming="resources/renaming_inheritance.tsv",
+	output:
+		"results/figure3/figure3.html",
+	params:
+		out_folder="results/figure3",
+		depth="../../"
+	shell:
+		"""
+		cp workflow/scripts/figure3.Rmd {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('figure3.Rmd', 'html_document')" \
+		{input.solv_vars} \
+		{input.renaming} \
+		{params.depth}
+		""" 
+		
+
+rule figure4_prep_CV_turro:
+	input:
+		clinvar="resources/variant_summary.txt.gz",
+		turro="resources/41586_2020_2434_MOESM5_ESM.xlsx",
+		tnamse_cases="results/parse_table/diagnostic_vars.tsv",
+		tnamse_vars="results/parse_table/all_monogenic_vars.tsv",
+	output:
+		"results/figure4/ClinVar_table.tsv",
+		"results/figure4/Turro_variant_table.txt",
+		"results/figure4/TN_vars_count.tsv"
+	params:
+		out_folder="results/figure4",
+		depth="../../"
+	shell:
+		"""
+		cp workflow/scripts/figure4* {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('figure4_prepare_ClinVar_data.Rmd', 'html_document')" \
+		{input.clinvar} \
+		{params.depth}
+		
+		Rscript -e "library(knitr); rmarkdown::render('figure4_prepare_Turro_data.R', 'html_document')" \
+		{input.turro} \
+		{params.depth}
+		
+		Rscript -e "library(knitr); rmarkdown::render('figure4_prepare_tnamse.Rmd', 'html_document')" \
+		{input.tnamse_cases} \
+		{input.tnamse_vars} \
+		{params.depth}
+		""" 
+
+
+
+rule figure4_combine_CV_TN_TU:
+	input:
+		cv="results/figure4/ClinVar_table.tsv",
+		tn="results/figure4/TN_vars_count.tsv",
+		tu="results/figure4/Turro_variant_table.txt",
+		cancer_g="resources/cancer_genes.txt",
+		year="resources/genes_year_of_first_report.xlsx",
+		hgnc="resources/HGNC_symbols.txt"
+	output:
+		"results/figure4/combined_gene_counts_years.tsv"
+	params:
+		out_folder="results/figure4",
+		depth="../../"
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/figure4_combine_CV_TN_TU.R {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('figure4_combine_CV_TN_TU.R', 'html_document')" \
+		{input.cv} \
+		{input.tn} \
+		{input.tu} \
+		{input.cancer_g} \
+		{input.year} \
+		{input.hgnc} \
+		{params.depth}
+		""" 
+
+
+rule figure4_plot:
+	input:
+		comb_source="results/figure4/combined_gene_counts_years.tsv"
+	output:
+		"results/figure4/figure4_finally_plot.html"
+	params:
+		out_folder="results/figure4",
+		depth="../../"
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/figure4_finally_plot.R {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('figure4_finally_plot.R', 'html_document')" \
+		{input.comb_source} \
+		{params.depth}
+		"""
+
+rule figure5:
+	input:
+		in_f="results/parse_table/all_cases.tsv",
+		hpo="resources/hpo.obo",
+		cat="resources/hpo_categorization_19_12_2022.tsv",
+	output:
+		"results/figure5/figure5_lasso_analysis_TNAMSE_cohort.html",
+	params:
+		out_folder="results/figure5/",
+		depth="../../"
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/figure5_lasso_analysis_TNAMSE_cohort.R {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('figure5_lasso_analysis_TNAMSE_cohort.R', 'html_document')" \
+		{input.in_f} \
+		{input.hpo} \
+		{input.cat} \
+		{params.out_folder} \
+		{params.depth}
+		""" 
+
+
+
+###### SUPPORTING
+
+## CCDS lengths NAMSE, NAMSE candidate, etc. vs. OMIM
+rule supporting_ccds_length:
+	input:
+		ccds_seq="resources/CCDS2Sequence.current.txt",
+		ccds_cur="resources/CCDS.current.txt",
+		hgnc="resources/HGNC_gene_names_ids",
+		candidates=config["novel_table"],
+		diagnostic_vars="results/parse_table/diagnostic_vars.tsv",
+		mim_titles="resources/mimTitles.txt",
+		genemap2="resources/genemap2_15_07_2021.txt",
+	output:
+		final_plot="results/supporting_ccds/supp_CCDS_plot.html" #		#
+	params:
+		out_folder="results/supporting_ccds",
+		depth="../../",
+		ccds_lengths="results/supporting_ccds/ccds_lengths.tsv",
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/supp_CCDS_process_files.R {params.out_folder}
+		cp workflow/scripts/supp_CCDS_plot.R {params.out_folder}
+		cd {params.out_folder}
+		
+		Rscript -e "library(knitr); rmarkdown::render('supp_CCDS_process_files.R', 'html_document')" \
+		{input.ccds_seq} \
+		{input.ccds_cur} \
+		{input.hgnc} \
+		{params.depth}
+		
+		Rscript -e "library(knitr); rmarkdown::render('supp_CCDS_plot.R', 'html_document')" \
+		{input.diagnostic_vars} \
+		{input.candidates} \
+		{params.ccds_lengths} \
+		{input.mim_titles} \
+		{input.genemap2} \
+		{params.depth}
+		"""
+
+rule supporting_missense:
+	input:
+		diag_vars="results/parse_table/diagnostic_vars.tsv",
+		VUS="results/parse_table/VUS.tsv",
+	output:
+		"results/supporting_missense/supp_VUS_vs_solving_vars.html"
+	params:
+		out_folder="results/supporting_missense",
+		depth="../../",
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/supp_VUS_vs_solving_vars.Rmd {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('supp_VUS_vs_solving_vars.Rmd', 'html_document')" \
+		{input.diag_vars} \
+		{input.VUS} \
+		{params.depth}
+		"""
+
+rule supporting_pops:
+	input:
+		all_cases="results/parse_table/all_cases.tsv",
+	output:
+		final_plot="results/supporting_pops/supp_population.html"
+	params:
+		out_folder="results/supporting_pops",
+		depth="../../",
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/supp_population.Rmd {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('supp_population.Rmd', 'html_document')" \
+		{input.all_cases} \
+		{params.depth}
+		"""
+
+rule supporting_autozygosity:
+	input:
+		all_cases="results/parse_table/all_cases.tsv",
+	output:
+		final_plot="results/supporting_autoz/supp_check_autozygosity.html"
+	params:
+		out_folder="results/supporting_autoz",
+		depth="../../",
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/supp_check_autozygosity.Rmd {params.out_folder}
+		cd {params.out_folder}
+		Rscript -e "library(knitr); rmarkdown::render('supp_check_autozygosity.Rmd', 'html_document')" \
+		{input.all_cases} \
+		{params.depth}
+		"""
+
+rule supporting2_annotate_w_VEP:
+	input:
+		TN_vars="results/parse_table/all_monogenic_vars.tsv",
+		contig_inf="resources/contig_info.txt",
+		CV2017="resources/clinvar_20171203.vcf.gz",
+	output:
+		"results/supporting2_anno/output_tsv.tsv",
+		"results/supporting2_anno/failed.txt",
+		"results/supporting2_anno/unnested_vars_converted.tsv"
+	params:
+		out_folder="results/supporting2_anno",
+		#fasta="/mnt/int1/annotation_sources/hg19_ref_fasta/human_g1k_v37.fasta",
+		depth="../../",
+	conda: "envs/vep.yaml"
+	shell:
+		"""
+		mkdir -p {params.out_folder}
+		cp workflow/scripts/supp2_anno.R {params.out_folder}
+		cd {params.out_folder}
+		
+		wget https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz -O clinvar.vcf.gz
+		wget https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz.tbi -O clinvar.vcf.gz.tbi
+		
+		cat {params.depth}{input.TN_vars} | tail -n +2 | cut -f6 > cHGVS.txt
+		
+		vep -i cHGVS.txt \
+		--force_overwrite \
+		--database \
+		--vcf \
+		--pick \
+		-a GRCh37 \
+		--custom {params.depth}{input.CV2017},ClinVar2017,vcf,exact,0,ID,AF_ESP,AF_EXAC,AF_TGP,ALLELEID,CLNDN,CLNDNINCL,CLNDISDB,CLNDISDBINCL,CLNHGVS,CLNREVSTAT,CLNSIG,CLNSIGINCL,CLNVC,CLNVCSO,CLNVI,DBVARID,GENEINFO,MC,ORIGIN,RS,SSR \
+		--custom clinvar.vcf.gz,ClinVarNOW,vcf,exact,0,ID,ALLELEID,CLNDN,CLNDNINCL,CLNDISDB,CLNDISDBINCL,CLNHGVS,CLNREVSTAT,CLNSIG,CLNSIGINCL \
+		-o outfile.vcf
+		
+		#--dir_cache params.database_dir \
+		#--hgvs \
+		#--fasta params.fasta \
+		#--cache
+
+		cat outfile.vcf | grep "^##" | cat - {params.depth}{input.contig_inf} > outfile_mend.vcf 
+		cat outfile.vcf | grep "^#CHROM" >> outfile_mend.vcf
+		cat outfile.vcf | grep -v "^#" | sort -k1,2 -V >> outfile_mend.vcf
+		cat outfile_mend.vcf | bgzip > outfile_mend.vcf.bgz 
+		 
+		tabix -p vcf outfile_mend.vcf.bgz 
+
+
+		bcftools +split-vep -l outfile_mend.vcf.bgz | cut -f2 | tr '\n' ';' | awk 'BEGIN {{ FS = ";"}} ;{{ print "HGVS-Input;ID;"$0}}' > output_tsv.tsv
+		bcftools +split-vep -d -f'%ID;%CHROM:%POS:%REF:%ALT;%CSQ\n' -A ";" outfile_mend.vcf.bgz >> output_tsv.tsv
+
+		cat outfile.vcf_warnings.txt | grep WARNING:  > warnings2.txt
+		cat warnings2.txt | cut -f7 -d" " > failed.txt
+		
+		Rscript supp2_anno.R output_tsv.tsv failed.txt ../../{input.TN_vars} ./
+		"""

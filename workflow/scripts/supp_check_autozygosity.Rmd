@@ -1,0 +1,61 @@
+---
+title: "Supporting check autozygosity"
+author: "Axel Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+library(tidyverse)
+
+args=c("results/parse_table/all_cases.tsv",
+       "../../" )
+
+args = commandArgs(trailingOnly=TRUE)
+depth<-args[2]
+all_cases_path<-paste0(depth, args[1])
+
+all_cases<-read_tsv(all_cases_path, guess_max = 2000)
+
+print("number of cases with autozygosity:")
+nrow(all_cases %>% filter(!is.na(autozygosity)))
+
+# use all cases with autozygosity 
+histo_autoz<-ggplot(all_cases, aes(x=autozygosity))+
+  geom_histogram(bins=60)+
+  theme_minimal()+
+  geom_vline(xintercept=2)+
+  xlab(label = "autozygosity / %")
+
+print(histo_autoz)
+ggsave(histo_autoz, filename="hist_plot_just_autoz_all.pdf",width=5, height=3)  
+ggsave(histo_autoz, filename="hist_plot_just_autoz_all.png",width=5, height=3, dpi = 300)
+
+
+all_cases %>% ggplot(aes(x=autozygosity)) + geom_histogram(binwidth = 0.02, alpha=1)+
+  scale_x_continuous(breaks=0:20, trans="log1p")+ 
+  facet_wrap(~ sequencing_laboratory, scales = "free_y")+
+  geom_vline(xintercept=2, color="blue")
+
+
+all_cases %>% ggplot(aes(x=autozygosity)) + geom_histogram(binwidth = 0.02, alpha=1)+
+  scale_x_continuous(breaks=0:20, trans="log1p")+ 
+  facet_wrap(~ sequencing_laboratory * sex, scales = "free_y")+
+  geom_vline(xintercept=2, color="blue")
+
+knitr::kable(
+all_cases %>% 
+  mutate(autozy_missing=is.na(autozygosity))%>%
+  group_by(solved, autozy_missing) %>%
+  summarise(num=n())
+)
+
+knitr::kable(
+all_cases %>% 
+  group_by(autozygosity_high) %>% 
+  add_count(name="total") %>% 
+  group_by(solved,autozygosity_high) %>% 
+  summarise(number=n(), relativ_proportion=round(number/median(total),3) )
+)
+
+```

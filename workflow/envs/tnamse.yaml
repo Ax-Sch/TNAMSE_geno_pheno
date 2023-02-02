@@ -1,0 +1,35 @@
+name: tnamse
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - snakemake=6
+  - tabulate=0.8.10
+  - r-r.utils
+  - r-base
+  - r-essentials
+  - r-tidyverse
+  - r-data.table
+  - r-boot
+  - r-readxl
+  - r-cowplot
+  - r-directlabels
+  - r-flexclust
+  - r-ggpubr
+  - r-ggrepel
+  - r-glmnet
+  - r-mass
+  - r-mlbench
+  - r-ontologyindex
+  - r-ontologysimilarity
+  - r-plotly
+  - r-plotmo
+  - r-plyr
+  - r-fmsb
+  - r-proc
+  - r-rcolorbrewer
+  - r-rcpp
+  - r-reshape2
+  - r-umap
+  - mamba

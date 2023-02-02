@@ -1,0 +1,64 @@
+---
+title: "ClinVar_extraction"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+Data downloaded: 27.05.2021
+
+interesting field according to readme:
+NumberSubmitters       integer, number of submitters describing this variant
+
+
+```{r load}
+library(tidyverse)
+
+args<-c("resources/variant_summary.txt.gz",
+        "../../")
+
+args = commandArgs(trailingOnly=TRUE)
+depth<-args[2]
+in_file<-paste0(depth, args[1])
+
+clinvar_tsv<-read_tsv(in_file)
+
+unique(clinvar_tsv$ClinicalSignificance)
+
+pathogenic_ratings<-c("Pathogenic", "Likely pathogenic", "Likely pathogenic, risk factor", "Pathogenic, risk factor", "Pathogenic/Likely pathogenic, risk factor")
+relevant_clinvar<-clinvar_tsv %>% filter(ClinicalSignificance %in% pathogenic_ratings)
+
+clinvar_variant_count<-relevant_clinvar %>% 
+  group_by(GeneSymbol, GeneID) %>%
+  summarise(number_of_variants=sum(NumberSubmitters)) %>%
+  filter(GeneID!=-1) # remove variants that could not be connected to a single gene / without a clear gene ID
+
+write_tsv(clinvar_variant_count, file="ClinVar_table.tsv")
+
+```
+
+"Pathogenic"
+"Likely pathogenic"
+"Likely pathogenic, risk factor"
+"Pathogenic, risk factor"
+"Pathogenic/Likely pathogenic, risk factor"
+
+
+"Pathogenic/Likely pathogenic, other"
+"Pathogenic, Affects"
+"Pathogenic/Likely pathogenic, drug response"
+"Pathogenic, drug response" 
+"Pathogenic, association"
+"Pathogenic, other"
+"Pathogenic, protective"
+"Pathogenic, drug response, other"                                      
+"Pathogenic/Likely pathogenic, other"    
+"Pathogenic, drug response, protective, risk factor"                    
+"Pathogenic, association, protective"       
+"Likely pathogenic, other"                                              
+"Likely pathogenic, drug response"                                      
+"Likely pathogenic, association"  
+"Pathogenic, confers sensitivity"    
+"Likely pathogenic, Affects" 
+
+
+

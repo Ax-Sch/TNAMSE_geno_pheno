@@ -1,0 +1,6 @@
+name: vep
+channels:
+  - bioconda
+dependencies:
+  - ensembl-vep=101
+  - bcftools

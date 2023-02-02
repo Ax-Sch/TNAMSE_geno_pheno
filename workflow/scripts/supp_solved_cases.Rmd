@@ -1,0 +1,191 @@
+---
+title: "Solved_cases_w_vars"
+output: html_document
+date: '2022-10-28'
+---
+
+```{r load_files, include=FALSE}
+library(tidyverse)
+library(readxl)
+
+args=c("results/parse_table/all_cases_red.tsv", 
+       "results/parse_table/all_vars.tsv", 
+       "resources/renaming_inheritance.tsv", 
+       "suppl_tables/Supplementary_Table_3_Novel.xlsx",
+       "../../" )
+
+args = commandArgs(trailingOnly=TRUE)
+
+depth<-args[5]
+path_cases<-paste0(depth, args[1])
+path_variants<-paste0(depth, args[2])
+path_renaming_inh<-paste0(depth, args[3])
+path_candidate<-paste0(depth, args[4])
+
+all_cases<-read_tsv(path_cases, guess_max = 2000, 
+                    locale=locale(decimal_mark = ",")) 
+
+all_variants<-read_tsv(path_variants, guess_max = 2000, 
+                    locale=locale(decimal_mark = ",")) 
+
+renaming_inh<-read_tsv(path_renaming_inh, na = "NA")
+
+candidates<-read_excel(path=path_candidate, 
+                       sheet = "DGG_Candidates_Supplement") 
+```
+
+  
+
+```{r make_var_lists, include=FALSE}
+rename_inheritance<-function(inheritance, zygosity, de_novo, renaming_scheme){
+  compare_NA<-function(A, B){
+    return(is.na(B) | 
+    (is.na(A) & is.na(B)) |
+    ((!(is.na(A) | is.na(B))) & (A==B))
+    )
+  }
+  
+  renamed_inh<-NA[1:length(inheritance)]
+  for (i in 1:nrow(renaming_scheme)){
+    rows_with_new_inh<-
+       (compare_NA(zygosity, renaming_scheme$zygosity[i]) &
+        compare_NA(inheritance, renaming_scheme$inheritance[i]) &
+        compare_NA(de_novo, renaming_scheme$de_novo[i]) )
+    renamed_inh[rows_with_new_inh]<-renaming_scheme$new_name[i]
+    print(renaming_scheme[i,])
+    print(paste("Max rows:", sum(rows_with_new_inh), "\n",
+                "Zygosity matches:", sum(compare_NA(zygosity, renaming_scheme$zygosity[i])), "\n",
+                "Inheritance matches: ", sum(compare_NA(inheritance, renaming_scheme$inheritance[i])), "\n",
+                "de novo matches:" ,sum(compare_NA(de_novo, renaming_scheme$de_novo[i]) )) )
+    
+  }
+ return(renamed_inh)  
+}
+
+all_variants$real_mode_of_inheritance_in_case<-
+  rename_inheritance(all_variants$mode_of_inheritance, 
+                     all_variants$zygosity,
+                     all_variants$de_novo,
+                     renaming_inh)
+
+
+
+
+all_variants<-all_variants%>%
+  mutate(ACMG_class=abs(ACMG_class))%>%
+  mutate(suitable_for_carrier_screen=ifelse(suitable_for_carrier_screen=="yes", TRUE, 
+                                            ifelse(is.na(suitable_for_carrier_screen), NA, FALSE))) 
+  
+
+candidates<-candidates %>%
+  rename(case_id=`Case ID`,
+         gene=Gene_name)%>%
+  mutate(case_id=str_replace(case_id, fixed("case "), ""))%>%
+  filter(!is.na(case_id))
+
+all_variants<-all_variants %>%
+  mutate(candidate=gene %in% candidates$gene)
+
+#check
+length(unique((all_variants %>% filter(candidate==TRUE))$gene))
+length(unique(candidates$gene))
+
+
+
+Case_Var<-all_variants %>%
+  left_join(all_cases, by="case_ID_paper")
+
+Case_Var_Incis<-Case_Var %>%
+  filter(variant_solves_case=="incidental")
+
+write_tsv(x = Case_Var_Incis,
+          file = "incidentals.tsv")
+
+Case_Var_noInci<-Case_Var %>%
+  filter(variant_solves_case!="incidental")
+
+Case_Var_noInci_diag<-Case_Var_noInci%>%
+  filter(solved=="solved")%>%
+  group_by(case_ID_paper)%>%
+  add_count(name="n")%>%
+  mutate(gene_count=length(unique(gene)))%>%
+  ungroup()
+
+
+single_var<-Case_Var_noInci_diag %>% 
+  filter(n==1)
+
+more_var_one_gene<-Case_Var_noInci_diag %>% 
+  filter(gene_count==1, n>1) 
+
+several_genes<-Case_Var_noInci_diag %>% 
+  filter(n>1 & gene_count>1) %>% 
+  group_by(gene, case_ID_paper) %>%
+  add_count(name="n_gene") %>%
+  ungroup()
+
+unique(several_genes$n_gene)
+
+several_gene_dom <- several_genes %>%
+  filter(mode_of_inheritance=="dominant")%>%
+  filter(ACMG_class>3)
+
+several_gene_recX <- several_genes %>%
+  filter(mode_of_inheritance=="recessive" | mode_of_inheritance=="X-linked")%>%
+  filter(ACMG_class>3) %>%
+  group_by(gene, case_ID_paper) %>%
+  add_count(name="n_gene") %>%
+  ungroup()%>%
+  filter((zygosity=="comp het" & n_gene>1)|
+           (zygosity=="homozygous") |
+           (zygosity=="hemi") )
+
+several_gene_mt <- several_genes %>%
+  filter(mode_of_inheritance=="mitochondrial")%>%
+  filter(ACMG_class>3)
+
+several_genes_filtered<-rbind(several_gene_dom, several_gene_recX, several_gene_mt) %>%
+  select(-n_gene)
+
+multiple_diagnoses<-
+  several_genes_filtered %>% 
+  group_by(case_ID_paper) %>%
+  mutate(n_gene=length(unique(gene)))%>%
+  filter(n_gene>1)
+
+write_tsv(file="multiple_diagnoses.tsv",
+          x=multiple_diagnoses)
+
+diagnostic_vars<-rbind(single_var, more_var_one_gene, several_genes_filtered)
+
+write_tsv(x=diagnostic_vars,
+          file="diagnostic_vars.tsv")
+
+VUS_unsolved<-Case_Var_noInci %>%
+  filter(solved!="solved", ACMG_class<4)
+
+VUS_in_solved<-Case_Var_noInci %>%
+  filter(solved=="solved", !paste(case_ID_paper, gene, sep=":") %in% paste(diagnostic_vars$case_ID_paper, diagnostic_vars$gene,sep=":"))%>%
+  filter(ACMG_class<4)
+
+VUS<-rbind(VUS_unsolved, VUS_in_solved)
+write_tsv(x=VUS, file="VUS.tsv")
+
+```
+
+
+```{r make_case_novel_list, include=FALSE}
+solved_w_novel<-(diagnostic_vars %>% 
+  filter(candidate==TRUE) )$case_ID_paper
+
+print(paste("Count of cases that were solved with novel genes:" ,
+      length(solved_w_novel)))
+
+# stratify by child and disease group
+all_cases_w_novel<-all_cases %>%
+  mutate(novel_disease_gene=case_ID_paper %in% solved_w_novel)%>%
+  mutate(solved_candidate=paste(solved, novel_disease_gene))
+
+write_tsv(x=all_cases_w_novel, 
+          file="all_cases_wHighEvNovel.tsv")
+```

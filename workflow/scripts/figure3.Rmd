@@ -1,0 +1,268 @@
+---
+title: "Figure 3 TNAMSE"
+author: "Axel Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+library(tidyverse)
+library(RColorBrewer)
+
+args=c("results/parse_table/diagnostic_vars.tsv", 
+       "resources/renaming_inheritance.tsv", 
+       "../../" )
+
+args = commandArgs(trailingOnly=TRUE)
+depth<-args[3]
+diagnostic_vars_file<-paste0(depth, args[1])
+path_ren_inheritance<-paste0(depth, args[2])
+
+
+diagnostic_vars<-read_tsv(diagnostic_vars_file, guess_max = 2000)
+renaming_inh<-read_tsv(path_ren_inheritance, na = "NA")
+
+orderOfInheritances<-unique(renaming_inh$new_name)
+
+diagnostic_vars$real_mode_of_inheritance_in_case<-
+  factor(diagnostic_vars$real_mode_of_inheritance_in_case, levels=orderOfInheritances)
+
+orderOfInheritances=(levels(diagnostic_vars$real_mode_of_inheritance_in_case))
+
+diagnostic_vars<-diagnostic_vars %>%
+  group_by(case_ID_paper, real_mode_of_inheritance_in_case, gene)%>%
+  mutate(suitable_for_carrier_screen=ifelse(sum(is.na(suitable_for_carrier_screen)>0), NA, !FALSE %in% suitable_for_carrier_screen))%>%
+  distinct(case_ID_paper, real_mode_of_inheritance_in_case, gene, .keep_all = TRUE)%>%
+  ungroup()
+
+diagnostic_vars$inheritance_suitable<-paste(diagnostic_vars$real_mode_of_inheritance_in_case,
+                                      diagnostic_vars$suitable_for_carrier_screen)
+
+write_tsv(x=diagnostic_vars,
+          file="diagnostic_vars.tsv")
+
+```
+
+
+```{r pieplot}
+
+knitr::kable(
+diagnostic_vars %>% 
+  mutate(total_count=n()) %>%
+  group_by(real_mode_of_inheritance_in_case, total_count)%>%
+  summarise(count=n(), proportion=round(n()/median(total_count),3))%>%
+  arrange(-count)
+)
+
+
+pieplot<-ggplot(data=diagnostic_vars) +
+  geom_bar(stat = "count", aes(x=factor(1), fill=real_mode_of_inheritance_in_case))+
+  scale_y_continuous()+
+  coord_polar("y")+
+  theme_void()+
+  scale_fill_brewer(palette = "Set2")
+print(pieplot)
+ggsave(pieplot, filename="pieplot_inheritance.pdf",width=4, height=4)  
+
+ar_cp_het<-diagnostic_vars %>% filter(real_mode_of_inheritance_in_case=="AR (comp het)")
+ar_hom<-diagnostic_vars %>% filter(real_mode_of_inheritance_in_case=="AR (hom)")
+
+pieplot_carrier<-ggplot(data=ar_hom) +
+  geom_bar(stat = "count", aes(x=factor(1), fill=inheritance_suitable))+
+  scale_y_continuous()+
+  coord_polar("y")+
+  theme_void()
+print(pieplot_carrier)
+ggsave(pieplot_carrier, filename="pieplot_inheritance_carrier_hom.pdf",width=4, height=4)  
+
+pieplot_carrier<-ggplot(data=ar_cp_het) +
+  geom_bar(stat = "count", aes(x=factor(1), fill=inheritance_suitable))+
+  scale_y_continuous()+
+  coord_polar("y")+
+  theme_void()
+print(pieplot_carrier)
+ggsave(pieplot_carrier, filename="pieplot_inheritance_carrier_comphet.pdf",width=4, height=4)
+
+
+for_field_hom_cp<-data.frame("hom"=c(sum(ar_hom$autozygosity_high, na.rm=TRUE),
+                                     sum(!ar_hom$suitable_for_carrier_screen, na.rm=TRUE)), 
+           "cp_het"=c(sum(ar_cp_het$suitable_for_carrier_screen, na.rm=TRUE),
+                      sum(!ar_cp_het$suitable_for_carrier_screen, na.rm=TRUE)), 
+  row.names = c("suitable", "not_suitable"))
+
+print(for_field_hom_cp)
+
+fisher.test(for_field_hom_cp)
+
+
+solved_high<-diagnostic_vars %>% filter(autozygosity_high)
+solved_low<-diagnostic_vars %>% filter(!autozygosity_high)
+
+for_field_high_AR<-data.frame(
+  "high_auto"=c(sum(solved_high$zygosity=="homozygous"),
+                sum(solved_high$zygosity!="homozygous"| is.na(solved_high$zygosity))), 
+  "low_auto"=c(sum(solved_low$zygosity=="homozygous", na.rm=TRUE),
+               sum(solved_low$zygosity!="homozygous" | is.na(solved_low$zygosity))), 
+  row.names = c("hom", "non_hom"))
+
+print(for_field_high_AR)
+
+fisher.test(for_field_high_AR)
+
+
+
+for_field_high_DNM<-data.frame(
+  "high_auto"=c(sum(solved_high$de_novo=="yes", na.rm = TRUE),
+                sum(solved_high$de_novo!="yes"| is.na(solved_high$de_novo))), 
+  "low_auto"=c(sum(solved_low$de_novo=="yes", na.rm=TRUE),
+               sum(solved_low$de_novo!="yes" | is.na(solved_low$de_novo))), 
+  row.names = c("de_novo", "non_de_novo"))
+
+print(for_field_high_DNM)
+
+fisher.test(for_field_high_DNM)
+
+
+
+
+
+duals<-diagnostic_vars %>% group_by(case_ID_paper)%>%
+  add_count(name="n")%>%
+  filter(n>1)
+
+table(duals$autozygosity_high)
+table(duals$zygosity)
+
+non_duals<-diagnostic_vars %>% group_by(case_ID_paper)%>%
+  add_count(name="n")%>%
+  filter(n==1)
+
+table(non_duals$autozygosity_high)
+table(non_duals$real_mode_of_inheritance_in_case)
+
+
+
+
+
+test_dual_diag_rec<-data.frame(
+  "recessive"=c(9,116), 
+  "non_recessive"=c(13,372), 
+  row.names = c("dual", "single"))
+
+fisher.test(test_dual_diag_rec)
+
+
+duals_dist<-duals %>% distinct(case_ID_paper, .keep_all=TRUE)
+for_field_dual_autoz<-data.frame(
+  "dual"=c(sum(duals_dist$autozygosity_high, na.rm = TRUE),
+                sum(!duals_dist$autozygosity_high,na.rm = TRUE)), 
+  "non_dual"=c(sum(non_duals$autozygosity_high, na.rm = TRUE),
+                sum(!non_duals$autozygosity_high,na.rm = TRUE)), 
+  row.names = c("high", "low"))
+for_field_dual_autoz
+fisher.test(for_field_dual_autoz)
+
+
+```
+
+
+
+
+
+```{r paper_numbers_autozygosity}
+
+# use all cases with autozygosity 
+histo_autoz<-ggplot(diagnostic_vars, aes(x=autozygosity))+
+  geom_histogram(bins=60)+
+  theme_minimal()+
+  geom_vline(xintercept=2)+
+  xlab(label = "autozygosity / %")
+print(histo_autoz)
+
+knitr::kable(
+diagnostic_vars %>% 
+  group_by(autozygosity_high) %>% 
+  add_count(name="total") %>% 
+  group_by(solved,autozygosity_high) %>% 
+  summarise(number=n(), relativ_proportion=round(number/median(total),3) )
+)
+
+
+box_plot_data<-diagnostic_vars %>% 
+  filter(solved=="solved",!is.na(real_mode_of_inheritance_in_case)) %>%
+  group_by(real_mode_of_inheritance_in_case)%>%
+  add_count(name="n")%>%
+  ungroup()
+
+box_plot<-
+  ggplot(data= box_plot_data,
+         aes(x=real_mode_of_inheritance_in_case,y=autozygosity,
+             fill=real_mode_of_inheritance_in_case))+
+  geom_boxplot(outlier.shape = NA)+
+  geom_jitter(width=0.2,alpha=1, size=0.5, color="grey40")+
+  scale_fill_brewer(palette = "Set2")+
+    theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))#+
+  #coord_cartesian(ylim = c(0,as.numeric(outliers[1,4])))
+
+print(box_plot)
+ggsave(box_plot, filename="box_plot_inh.pdf",width=6.5, height=4)  
+
+```
+
+
+
+```{r solved_autozygosity}
+
+```
+
+## Bargraphs
+
+
+```{r bargraphs}
+
+n_de_novo_high_auto<-diagnostic_vars %>% filter(solved=="solved",real_mode_of_inheritance_in_case=="AD (de novo)",autozygosity_high==TRUE) %>% nrow()
+n_de_novo_low_auto<-diagnostic_vars %>% filter(solved=="solved",real_mode_of_inheritance_in_case=="AD (de novo)",autozygosity_high==FALSE) %>% nrow()
+n_de_novo_unknown_auto <-diagnostic_vars %>% filter(solved=="solved",real_mode_of_inheritance_in_case=="AD (de novo)",is.na(autozygosity_high)) %>% nrow()
+
+diagnostic_vars_autozygosityVar<-diagnostic_vars%>%
+  mutate(n_denovo=ifelse(autozygosity_high == TRUE, n_de_novo_high_auto, n_de_novo_low_auto),)%>%
+  mutate(n_denovo=ifelse(is.na(autozygosity_high), n_de_novo_unknown_auto, n_denovo),) #%>%
+  
+#proportion of inheritance
+dat_bar_graphs_inheritanc<-diagnostic_vars_autozygosityVar %>% 
+  filter(solved=="solved",!is.na(real_mode_of_inheritance_in_case), !is.na(autozygosity) ) %>%
+  group_by(autozygosity_high)  %>%
+  add_count(name="total") %>% 
+  group_by(real_mode_of_inheritance_in_case,autozygosity_high,total) %>% 
+  summarise(number=n(), relativ_proportion=round(number/median(total),4), rel_prop_DNM=number/median(n_denovo))
+
+dat_bar_graphs_inheritanc$real_mode_of_inheritance_in_case<-factor(dat_bar_graphs_inheritanc$real_mode_of_inheritance_in_case, levels=orderOfInheritances)
+
+knitr::kable(dat_bar_graphs_inheritanc)
+
+dat_bar_graphs_inheritanc$real_mode_of_inheritance_in_case<-
+  factor(dat_bar_graphs_inheritanc$real_mode_of_inheritance_in_case,
+levels=(orderOfInheritances))
+
+
+bargraph_inh<-  ggplot(data=dat_bar_graphs_inheritanc, aes(x=autozygosity_high,y=relativ_proportion, fill=real_mode_of_inheritance_in_case)) +
+  geom_bar(stat = "identity", width=0.80)+  
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ 
+    scale_fill_brewer(palette = "Set2")+
+    theme_bw()
+print(bargraph_inh)
+ggsave(bargraph_inh, filename = "bargraph_inh.pdf", width=4.5, height=3.5)
+
+scaled_bargraph<-ggplot(data=dat_bar_graphs_inheritanc, aes(x=autozygosity_high,y=rel_prop_DNM, fill=real_mode_of_inheritance_in_case)) +
+  geom_bar(stat = "identity", width=0.80)+  
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ 
+  #geom_text(aes(y=0.5,label=total),size=6)+
+      theme_bw()+
+      scale_fill_brewer(palette = "Set2")
+
+print(scaled_bargraph)
+ggsave(scaled_bargraph, filename = "scaled_bargraph.pdf", width=4.3, height=3.5)
+
+```
+

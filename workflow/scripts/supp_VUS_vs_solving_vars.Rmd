@@ -1,0 +1,88 @@
+---
+title: "Supporting VUS / diagnostic consequences"
+author: "Axel Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+args=c("results/parse_table/diagnostic_vars.tsv", 
+       "results/parse_table/VUS.tsv",
+       "../../" )
+
+args = commandArgs(trailingOnly=TRUE)
+depth<-args[3]
+diagnostic_vars_file<-paste0(depth, args[1]) #
+VUS_file<-paste0(depth, args[2]) #
+
+
+diagnostic_vars<-read_tsv(diagnostic_vars_file, guess_max = 2000)
+VUS<-read_tsv(VUS_file, guess_max = 2000)
+```
+
+```{r variant_types}
+table(diagnostic_vars$variant_type)
+table(VUS$variant_type)
+
+diagnostic_and_VUS<-rbind(
+cbind(diagnostic_vars$variant_type, "diagnostic"),
+cbind(VUS$variant_type, "VUS")
+)
+colnames(diagnostic_and_VUS)<-c("Consequence", "diag_VUS")
+diagnostic_and_VUS<-as.tibble(diagnostic_and_VUS)
+
+factor_order<-c("SV",
+"nonsense",
+"frameshift",
+"start loss",
+"splice",
+"inframe indel",
+"missense",
+"synonymous")
+
+diagnostic_and_VUS$Consequence<-factor(diagnostic_and_VUS$Consequence, levels=factor_order)
+
+D_VUS_prop<-diagnostic_and_VUS %>%
+  filter(!is.na(Consequence))%>%
+  group_by(diag_VUS)%>%
+  add_count()%>%
+  group_by(diag_VUS, Consequence)%>%
+  mutate(prop=n()/n)%>%
+  distinct()
+
+
+
+
+
+print(knitr::kable(D_VUS_prop))
+
+Conseq_plot<-ggplot(D_VUS_prop)+
+  geom_bar(aes(x=diag_VUS, y=prop, fill=Consequence), stat="identity")+
+  theme_bw()
+
+print(Conseq_plot)
+
+ggsave(plot = Conseq_plot,
+       filename = "Conseq_plot.pdf",
+       width=3.5,
+       height=4)
+
+
+n_diag_Mis<-nrow(diagnostic_and_VUS %>% filter(Consequence=="missense", diag_VUS=="diagnostic"))
+n_diag_noMis<-nrow(diagnostic_and_VUS %>% filter(Consequence!="missense", diag_VUS=="diagnostic"))
+n_VUS_Mis<-nrow(diagnostic_and_VUS %>% filter(Consequence=="missense", diag_VUS=="VUS"))
+n_VUS_noMis<-nrow(diagnostic_and_VUS %>% filter(Consequence!="missense", diag_VUS=="VUS"))
+
+for_field_Missense<-data.frame("solving"=c( n_diag_Mis, n_diag_noMis ), 
+           "VUS"=c( n_VUS_Mis, n_VUS_noMis ),
+  row.names = c("missense", "non_missense"))
+
+print(for_field_Missense)
+
+fisher.test(for_field_Missense)
+```
+
+
+

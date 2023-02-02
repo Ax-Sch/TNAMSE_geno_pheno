@@ -1,0 +1,5 @@
+---
+ case_table: "resources/Supplementary_Table_1_ES_cohort.xlsx"
+ novel_table: "resources/Supplementary_Table_3_Novel.xlsx"
+ renaming: "resources/renaming_scheme.tsv"
+ HGNC: "resources/HGNC_symbols.txt"

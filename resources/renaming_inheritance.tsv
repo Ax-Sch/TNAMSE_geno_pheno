@@ -1,0 +1,9 @@
+new_name	zygosity	inheritance	de_novo
+AR (hom)	homozygous	recessive	NA
+AR (comp het)	comp het	recessive	NA
+XL	hemi	X-linked	NA
+XL	heterozygous	X-linked	NA
+mt	NA	mitochondrial	NA
+AD	heterozygous	dominant	no
+AD	heterozygous	dominant	NA
+AD (de novo)	heterozygous	dominant	yes

@@ -1,0 +1,229 @@
+---
+title: "Figure 2 part 1 TNAMSE"
+author: "Axel Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+args=c("results/parse_table/all_cases_wHighEvNovel.tsv",
+       "../../")
+
+args = commandArgs(trailingOnly=TRUE)
+depth<-args[2]
+all_cases_file<-paste0(depth, args[1]) #
+
+all_cases<-read_tsv(all_cases_file, guess_max = 2000, locale=locale(decimal_mark = ",")) %>%
+  distinct(case_ID_paper,.keep_all = TRUE) # remove double occuring cases (for security, should already be removed)
+```
+
+## 2a
+
+```{r prepare_tables}
+
+print("count of cases:")
+print(nrow(all_cases %>% filter(!is.na(case_ID_paper))))
+
+print("NA in solved-status, will now be removed:")
+print(nrow(all_cases %>% filter(!is.na(case_ID_paper)) %>% filter(is.na(solved))))
+
+
+```
+
+```{r barplot_soved_categorie2a}
+# stratify by child and disease group
+solved_proportions<-all_cases %>%
+  filter(!is.na(solved))%>%
+  group_by(disease_category) %>%
+  mutate(count=n())%>%
+  group_by(disease_category, solved_candidate) %>%
+  summarise(solved_proportion_v=n()/count, anzahl=n(), count=mean(count)) %>%
+  mutate(disease_category=as.character(disease_category)) %>% 
+  ungroup()%>%
+  distinct()
+
+knitr::kable(solved_proportions)
+
+solved_proportions<- solved_proportions%>% 
+  arrange(-solved_proportion_v)
+
+new_levels_count<-rev(unique(solved_proportions$disease_category))
+new_levels_solved=c( "solved TRUE", "solved FALSE")
+
+solved_proportions<-solved_proportions%>%
+  filter(solved_candidate %in% new_levels_solved)%>%
+  mutate(disease_category=factor(disease_category, levels=new_levels_count) )%>%
+  mutate(solved_candidate=factor(solved_candidate, levels=new_levels_solved) ) 
+
+knitr::kable(solved_proportions)
+
+plot_diagnostic_yield<-ggplot(solved_proportions, 
+          aes(x=disease_category, y=solved_proportion_v, fill=solved_candidate, label=count*solved_proportion_v)) + 
+  geom_bar(stat="identity", width=0.85)+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  geom_text(position = "stack")
+print(plot_diagnostic_yield)
+ggsave(plot_diagnostic_yield, file="plot_diagnostic_yield_categories_w_count.pdf", width=3.2, height=4.6)
+```
+
+
+```{r barplot_solved_categories_autoz}
+# stratify by child and disease group
+solved_proportions<-all_cases %>%
+  filter(!is.na(solved), !is.na(autozygosity_high))%>%
+  group_by(disease_category, autozygosity_high) %>%
+  summarise(solved_proportion_v=mean(solved=="solved"), anzahl=n(), count=sum((solved=="solved"))) %>%
+  mutate(disease_category=as.character(disease_category)) %>% 
+  ungroup()%>%
+  distinct()
+
+knitr::kable(solved_proportions)
+
+solved_proportions<- solved_proportions%>% 
+  arrange(-solved_proportion_v)
+
+
+#solved_proportions<-solved_proportions%>%
+#  filter(solved_candidate %in% new_levels_solved)%>%
+#  mutate(disease_category=factor(disease_category, levels=new_levels_count) )%>%
+#  mutate(solved_candidate=factor(solved_candidate, levels=new_levels_solved) ) 
+
+knitr::kable(solved_proportions)
+
+plot_diagnostic_yield<-ggplot(solved_proportions, 
+          aes(x=disease_category, fill=autozygosity_high, y=solved_proportion_v,  label=count)) + 
+  geom_bar(stat="identity", position="dodge",  width=0.85)+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  geom_text(position = "dodge")
+print(plot_diagnostic_yield)
+ggsave(plot_diagnostic_yield, file="plot_solved_categories_autoz.pdf", width=4, height=5)
+
+```
+
+
+```{r solved_props_2a_second}
+print("NA in adult-child status, will now be removed:")
+print(nrow(all_cases %>% filter(!is.na(case_ID_paper)) %>% filter(is.na(adult_child))))
+
+# stratify by child and disease group
+solved_proportions<-all_cases %>%
+  filter(!is.na(solved))%>%
+  group_by(adult_child) %>%
+  mutate(count=n())%>%
+  group_by(adult_child, solved_candidate) %>%
+  summarise(solved_proportion_v=n()/count, anzahl=n(), count=mean(count)) %>%
+  mutate(adult_child=as.character(adult_child)) %>% 
+  ungroup()%>%
+  distinct()
+
+knitr::kable(solved_proportions)
+
+solved_proportions<- solved_proportions%>% 
+  arrange(-solved_proportion_v)
+
+new_levels_count<-rev(unique(solved_proportions$adult_child))
+new_levels_solved=c( "solved TRUE", "solved FALSE")
+
+solved_proportions<-solved_proportions%>%
+  filter(solved_candidate %in% new_levels_solved)%>%
+  mutate(adult_child=factor(adult_child, levels=new_levels_count) )%>%
+  mutate(solved_candidate=factor(solved_candidate, levels=new_levels_solved) ) 
+
+knitr::kable(solved_proportions)
+
+plot_diagnostic_yield<-ggplot(solved_proportions, 
+          aes(x=adult_child, y=solved_proportion_v, fill=solved_candidate, label=count*solved_proportion_v)) + 
+  geom_bar(stat="identity", width=0.85)+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  geom_text(position = "stack")
+print(plot_diagnostic_yield)
+ggsave(plot_diagnostic_yield, file="plot_diagnostic_yield_all_info_adult_child.pdf", width=2.7, height=2.8)
+
+```
+
+
+
+
+
+```{r test_adult_child}
+print("solved percent total:")
+mean(all_cases$solved=="solved")
+
+children<- all_cases %>% filter(adult_child=="child")
+adults<- all_cases %>% filter(adult_child=="adult")
+
+print("solved percent children:")
+mean(children$solved=="solved")
+print("solved percent adults:")
+mean(adults$solved=="solved")
+
+for_field_AdChi<-data.frame("adults"=c(sum(adults$solved!="solved"),sum(adults$solved=="solved")), 
+           "children"=c(sum(children$solved!="solved"), sum(children$solved=="solved")),
+  row.names = c("unsolved", "solved"))
+
+fisher.test(for_field_AdChi)
+```
+
+
+```{r test_categories}
+ndds<- all_cases %>% filter(disease_category=="neurodevelopmental")
+non_ndds<- all_cases %>% filter(disease_category!="neurodevelopmental")
+
+print("solved percent ndds:")
+mean(ndds$solved=="solved")
+print("solved percent non_ndds:")
+mean(non_ndds$solved=="solved")
+
+for_field_NDD<-data.frame("non_ndds"=c(sum(non_ndds$solved!="solved"), sum(non_ndds$solved=="solved")),
+                          "ndds"=c(sum(ndds$solved!="solved"),sum(ndds$solved=="solved")),
+  row.names = c("unsolved", "solved"))
+
+fisher.test(for_field_NDD)
+
+
+
+# pairwise
+library(fmsb)
+
+pairwise_cat_table<-all_cases%>%
+  group_by(disease_category)%>%
+  summarize(n_solved=sum(solved=="solved"),n_total=n())
+
+n_solved<-pairwise_cat_table$n_solved
+n_total<-pairwise_cat_table$n_total
+names(n_solved)<-pairwise_cat_table$disease_category
+
+sig_table<-pairwise.fisher.test(n_solved, n_total, p.adjust.method="bonferroni")
+
+print("pairwise fisher's adjusted by bonferroni")
+
+knitr::kable(sig_table$p.value, digits=15)
+
+```
+
+
+```{r test_pedia}
+pedias<-all_cases %>% filter(!is.na(Face2Gene_ID))
+non_pedias<-all_cases %>% filter(is.na(Face2Gene_ID))
+
+print("count of Pedia cases:")
+nrow(pedias)
+
+print("solved percent Pedia:")
+mean(pedias$solved=="solved")
+
+print("solved percent non Pedia:")
+mean(non_pedias$solved=="solved")
+
+for_field_Pedia<-data.frame("pedias"=c(sum(pedias$solved!="solved"),sum(pedias$solved=="solved")), 
+           "non_pedias"=c(sum(non_pedias$solved!="solved"), sum(non_pedias$solved=="solved")),
+  row.names = c("unsolved", "solved"))
+try(
+fisher.test(for_field_Pedia)
+)
+
+```

@@ -1,0 +1,330 @@
+---
+title: "Figure 4 TNAMSE"
+author: "Axel Schmidt"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=TRUE, message=TRUE}
+library(tidyverse)
+library(readxl)
+
+#for debug / run stand alone
+args=c("",
+       "../../suppl_tables/Supplementary_Table_1_ES_cohort.xlsx",
+       "../../resources/HGNC_symbols.txt",
+       "../../resources/renaming_scheme.tsv" ,
+       "../../results/parse_table")
+
+# skip the following line if you want to run this script stand alone
+args = commandArgs(trailingOnly=TRUE)
+
+depth<-args[1]
+in_file<-paste0(depth, args[2]) #
+HGNC_symbols_path<-paste0(depth, args[3])
+renaming_scheme_path<-paste0(depth, args[4]) #
+out_folder<-paste0(depth, args[5]) #
+
+
+own_name_repair<-function(nmn){
+  new_name<-str_replace_all(nmn, c("\\\\"="_", ","="_", " "="_"))
+  return(new_name)
+}
+
+all_cases_raw<-read_xlsx(in_file, guess_max = 2000, .name_repair = own_name_repair, sheet="data")  # remove double occuring cases (for security, should already be removed)
+
+renaming_scheme<-read_tsv(renaming_scheme_path)
+
+all_cases<-all_cases_raw
+for (i in 1:nrow(renaming_scheme)){
+  # rename colname
+  old_coln<-renaming_scheme[i,]$old_colname
+  new_coln<-renaming_scheme[i,]$new_colname
+  coln<-colnames(all_cases)
+  if (old_coln %in% colnames(all_cases)){
+    coln[coln==old_coln]=new_coln
+    colnames(all_cases)<-coln
+  }
+  # potentially replace values
+  if (renaming_scheme$change_values[i]){
+    old_val<-renaming_scheme$old_value[i]
+    new_val<-renaming_scheme$new_value[i]
+    
+    for (h in which(all_cases[,new_coln]==old_val)){
+      all_cases[h,new_coln]<-new_val
+    }
+  }
+  
+}
+
+adult_child <- function(age){
+  if (!is.na(as.integer(age)[1]) ){
+    adult_child_return<-ifelse(age>17, "adult", "child")
+  }else{
+    adult_child_return<-age
+  }
+}
+all_cases$adult_child=adult_child(all_cases$age_in_years)
+
+
+all_cases <- all_cases %>%
+  mutate(autozygosity=sub(",", ".", autozygosity))
+
+all_cases$autozygosity<-ifelse(grepl(pattern = "%" ,all_cases$autozygosity), 
+                               as.numeric(sub("%", "", all_cases$autozygosity)), as.numeric(all_cases$autozygosity)*100)
+all_cases$autozygosity_high<-all_cases$autozygosity>2
+
+
+write_tsv(x = all_cases, file = paste0(out_folder,"/all_cases.tsv"))
+
+HGNC_symbols<-read_tsv(HGNC_symbols_path, col_names=FALSE ) %>% mutate(HGNC_ok=TRUE) %>% distinct()
+
+#knitr::knit_exit()
+```
+
+
+
+
+```{r unnest_variants}
+#number of variants reported:
+#add count to each patient; diagnostic grade genes:
+
+Gsplit_cols=c(
+"gene",
+"variant_solves_case",
+"if_new_disease_gene__level_of_evidence",
+"autocasc",
+"pmid",
+"HGVS_gDNA",
+"HGVS_cDNA",
+"HGVS_protein",
+"ACMG_class",
+"zygosity",
+"de_novo",
+"mode_of_inheritance",
+"ClinVar_Accession_ID",
+"suitable_for_carrier_screen",
+"variant_type",
+"ISCN"
+)
+Gsplit_cols<-Gsplit_cols[Gsplit_cols %in% colnames(all_cases)]
+  
+Vsplit_cols<-c(
+"variant_solves_case",
+"if_new_disease_gene__level_of_evidence",
+"HGVS_gDNA",
+"HGVS_cDNA",
+"autocasc",
+"HGVS_protein",
+"ACMG_class",
+"zygosity",
+"de_novo",
+"ClinVar_Accession_ID",
+"suitable_for_carrier_screen",
+"ISCN",
+"variant_type"
+)
+Vsplit_cols<-Vsplit_cols[Vsplit_cols %in% colnames(all_cases)]
+
+Export_cols<-colnames(all_cases)[!colnames(all_cases) %in% Gsplit_cols]
+write_tsv(x = all_cases[,Export_cols], file = paste0(out_folder, "/all_cases_red.tsv"))
+
+
+diagnostic_grade_variants<-all_cases %>%
+  mutate(num_genes=ifelse(!is.na(gene), 1 + str_count(gene, "/"),0))%>%
+  mutate(num_vars=ifelse(!is.na(gene), num_genes + str_count(HGVS_cDNA, ";"), 0))
+
+split_backsl<-function(x){
+  spl<-str_split(x,"/")
+  return(spl)
+}
+
+gene_split<-diagnostic_grade_variants %>%
+  mutate_at(all_of(Gsplit_cols),split_backsl)
+
+
+CHECK_plausi<-function(dataSet, split_cols){
+max_min<-data.frame(i=1:nrow(dataSet), maxi=NA, mini=NA)
+for(i in 1:nrow(dataSet)){
+  max_min[i,"maxi"]=0
+  max_min[i,"mini"]=99
+  for (col_name in split_cols){
+  if  (sum(!is.na(unlist(dataSet[i, col_name]))) != 0) {
+    max_min[i,"maxi"]=max( max_min[i,"maxi"], length(unlist(dataSet[i, col_name])))
+    max_min[i,"mini"]=min( max_min[i,"mini"], length(unlist(dataSet[i, col_name])))
+  }
+  }
+  if (max_min[i,"maxi"]!=0 & max_min[i,"mini"]!=99){
+    if ( (max_min[i,"maxi"]!=max_min[i,"mini"])){
+      print(paste(dataSet[i,]$case_ID_paper, i, max_min[i,"mini"], max_min[i,"maxi"]))
+      print(unlist(dataSet[i,split_cols]))
+   }
+  }else{
+   max_min[i,"maxi"]=0
+   max_min[i,"mini"]=0
+  }
+}
+return(max_min)
+}
+
+max_min_gene<-CHECK_plausi(gene_split, Gsplit_cols)
+
+#### UNNEST gene level
+unnest_del<-function(dataSet, split_cols, suff){
+unnested=data.frame()
+
+for(i in 1:nrow(dataSet)){
+  print(i)
+  temp_df<-dataSet[i, ]
+  if (max_min_gene[i,"maxi"]!=0){
+    temp_df<-rbind(temp_df, dataSet[rep(i, max_min_gene[i,"maxi"]-1), ])
+  }
+  head(temp_df)
+  for (col_name in split_cols){
+      for (h in 1:nrow(temp_df)){
+        if (length(unlist(temp_df[1, col_name]))>1) {
+          temp_df[h, paste0(col_name,suff)]<-unlist(temp_df[[1, col_name]])[h]
+        } else {
+          temp_df[h, paste0(col_name,suff)]<-unlist(temp_df[[1, col_name]])[1]
+        }
+      }
+  }
+  unnested=rbind(unnested, temp_df)
+}
+return(unnested)
+}
+
+unnested_genes<-unnest_del(gene_split, Gsplit_cols, "Gexp")
+
+
+
+ ################################################ Variants per gene - unnest ################################################
+
+reformat_HGVS<-function(x_str){
+  templ<-str_replace_all(string = x_str, pattern = fixed(" "),replacement =  "")
+  #templ<-x_str
+  if (is.null(templ)){
+    return("")
+  }
+  if (!grepl(";", templ)){
+    return((c(templ)))
+  }
+  
+    templ<-str_replace_all(templ, fixed("];["), "$")
+    templ<-str_replace_all(templ, fixed("];p.["), "$")
+    templ<-str_replace_all(templ, fixed("];c.["), "$")
+    templ<-str_replace_all(templ, fixed("];g.["), "$")
+    templ<-str_replace_all(templ, fixed(";"), "$")
+    templ<-str_replace_all(templ, fixed("]"), "")
+    templ<-str_replace_all(templ, fixed("["), "")
+    
+    reformat<-function(var, sep){
+      
+    if ( sum(grepl(pattern=sep, x=var, fixed=TRUE))>0 ){ # cHGVS
+      var<-str_replace_all(var, fixed(sep), "")
+      transkript=""
+      variants=var
+      
+      n_vars<-str_count(pattern="$", string=var)+1
+      n_transcripts<-str_count(pattern=":", string=var)
+
+    if (n_transcripts==1){
+      transkript<-str_split(var, fixed(":"), simplify = TRUE)[1]
+      transkript<-paste0(transkript,":")
+      variants<-str_split(var, fixed(":"), simplify = TRUE)[2]
+      splited<-str_split(variants, fixed("$"), simplify = TRUE)
+      
+    }else if (n_transcripts>1){
+      transkript<-str_split(var, fixed(":"), simplify = TRUE)[1]
+      transkript<-paste0(transkript,":")
+      temp_vars_split<-str_split(var, fixed("$"), simplify = TRUE)
+      splited<-c()
+      
+      for (i in 1:n_vars){
+        trans_in_var<-sum(grepl(pattern=":", x=temp_vars_split[i], fixed=TRUE))
+        if (trans_in_var>0){
+          new_var<-str_split(temp_vars_split[i], fixed(":"), simplify = TRUE)[2]
+        } else {
+          new_var <- temp_vars_split[i]
+        }
+        splited<-c(splited,
+                    new_var)
+      }
+      
+    }else{
+      splited<-str_split(variants, fixed("$"), simplify = TRUE)
+    }
+
+      
+      splited_uniq<-unique(as.vector(splited))
+
+      return(paste0(transkript, sep, splited_uniq))
+      
+
+    }else{
+      return(var)
+    }
+      
+    }
+    
+    templ<-reformat(templ,"c.")
+    templ<-reformat(templ,"g.")
+    templ<-reformat(templ,"p.")
+    templ<-str_split(templ, fixed("$"), simplify=TRUE)
+    
+    return(templ)
+  }
+  
+#### TEST CASES
+reformat_HGVS("NM_000198.3:c.[500C>T;946C>T];[500C>T;946C>T]")
+reformat_HGVS("p.[Ala167Val;Arg316Cys];[Ala167Val;Arg316Cys]")
+reformat_HGVS("NM_000255.4:c.[1677-1G>C];[654A>C]")
+reformat_HGVS("NM_022893.3:c.1092A>T;NM_022893.3:c.1173C>G")
+reformat_HGVS("NP_075044.2:p.(Gln364His);NP_075044.2:p.(Asn391Lys)")
+reformat_HGVS("10:72358407:C:T;10:72360577:G:A")
+
+for (i in 1:nrow(unnested_genes)){
+  unnested_genes$HGVS_proteinTMP[[i]]<- (reformat_HGVS(unnested_genes$HGVS_proteinGexp[i]))
+  unnested_genes$HGVS_cDNAGexpTMP[[i]]<- (reformat_HGVS(unnested_genes$HGVS_cDNAGexp[i]))
+  unnested_genes$HGVS_gDNAGexpTMP[[i]]<- (reformat_HGVS(unnested_genes$HGVS_gDNAGexp[i]))
+}
+
+Vsplit_cols_G<-paste0(Gsplit_cols,"Gexp")
+
+split_semi<-function(x){
+  spl<-str_split(x,";")
+  return(spl)
+}
+
+var_split<-unnested_genes %>%
+  mutate_at(all_of(Vsplit_cols_G),split_semi)
+
+var_split$HGVS_proteinGexp<-unnested_genes$HGVS_proteinTMP
+var_split$HGVS_cDNAGexp<-unnested_genes$HGVS_cDNAGexpTMP
+var_split$HGVS_gDNAGexp<-unnested_genes$HGVS_gDNAGexpTMP
+
+max_min_gene<-CHECK_plausi(var_split, Vsplit_cols_G )
+
+unnested_vars<-unnest_del(var_split, Vsplit_cols_G, "Vexp")
+
+#la<-unnested_vars[10:20,c( "geneGexp", paste0(Vsplit_cols_G,"Vexp"))]
+#la
+
+variant_table<-unnested_vars[, grepl("Vexp",colnames(unnested_vars)) | colnames(unnested_vars) %in% c("case_ID_paper", "geneGexp")]
+cln<-colnames(variant_table)
+cln<-str_replace(cln, "GexpVexp", "")
+colnames(variant_table)<-cln
+is_na<-function(x){
+  ret_na<-is.na(x) | x=="NA" | x=="#NV"
+}
+
+monogenic_rows<-which( !(is_na(variant_table$gene)) )
+SV_CNV_rows<-which ( is_na(variant_table$gene) & ((!is_na(variant_table$HGVS_gDNA)) | (!is_na(variant_table$ISCN))) )
+
+write_tsv(x = variant_table[monogenic_rows,], file = paste0(out_folder, "/all_monogenic_vars.tsv"))
+write_tsv(x = variant_table[SV_CNV_rows,], file = paste0(out_folder, "/all_SV_CNV_vars.tsv"))
+write_tsv(x = variant_table[unique(c(SV_CNV_rows, monogenic_rows)),], file = paste0(out_folder, "/all_vars.tsv"))
+
+```

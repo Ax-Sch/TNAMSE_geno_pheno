@@ -1,0 +1,10 @@
+old_colname	new_colname	change_values	old_value	new_value
+internal_case_ID	internal_patient_id	FALSE		
+HPO_terms	HPO_Term_IDs	FALSE		
+disease_category	disease_category	FALSE		
+case_solved/unsolved/unclear	solved	TRUE	geklärt	solved
+case_solved/unsolved/unclear	solved	TRUE	wahrscheinlich geklärt	solved
+case_solved/unsolved/unclear	solved	TRUE	nicht geklärt	unsolved
+case_solved/unsolved/unclear	solved	TRUE	partially solved	solved
+HGVS_pDNA	HGVS_protein	FALSE		
+sequencing_lab	sequencing_laboratory	FALSE		
