@@ -30,8 +30,7 @@ HGNC:
 # Files specific to this project:
 
 Supplementary Tables:
-- Supplementary_Table_1_ES_cohort.xlsx
-- Supplementary_Table_3_Novel.xlsx
+- Supplementary Tables.xlsx
 
 HPO-related data:
 - hpo.obo: HPO release 2021-02-08
