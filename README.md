@@ -73,3 +73,8 @@ You can find additional information on the files in the resources folder in this
 
 If you have issues - just raise a github issue. If you have questions just get in touch.
 
+### Citation
+
+This code is accompanyes the manuscript "Next-generation phenotyping integrated in a national framework for patients with ultra-rare disorders improves genetic diagnostics and yields new molecular findings" which should be referenced when using this data.
+
+
