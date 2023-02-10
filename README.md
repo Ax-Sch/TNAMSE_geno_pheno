@@ -2,7 +2,7 @@
 
 Scripts for producing the figures of the analysis of the phenotypic and molecular data of the TRANSLATE-NAMSE project. The individual R-scripts were integrated in an automated snakemake pipeline to facilitate regeneration of analyses during data cleaning. Individual R-scripts are named according to the figures for which they yield the data.
 
-You can either run the whole pipeline, or you can run scripts individually.
+You can either run the whole pipeline, or you can run scripts individually. If you are looking for our tool YieldPred please visit the following website: https://translate-namse.de/ .
 
 ### General
 
