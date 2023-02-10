@@ -32,7 +32,7 @@ Finally you need to add two supplemental files to the folder "resources":
 - Supplementary\_Table\_3\_Novel.xlsx
 
 To run the code "figure1_part2.R" / snakemake rule "figure1_part2" as well as snakemake rule "supporting_ccds_length" / code "supp_CCDS_process_files.R" and "supp_CCDS_plot.R", files from OMIM are required. 
-Therefore, you need to aquire a licence for data download from OMIM (see omim.org/downloads) if you would like to run this code. 
+Therefore, you need to aquire a licence for data download from OMIM (see https://omim.org/downloads ) if you would like to run this code. 
 If you have obtained the license, take the third word of the heading (heading starts with "Download / ") of OMIM's download page as password to access the following link https://uni-bonn.sciebo.de/s/EZcIsUYItdBSiJw . If this is unclear / does not work, please get in touch.
 
 You should then save the following files to "resources/":
