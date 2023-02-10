@@ -139,7 +139,7 @@ currated_dataset<-all_cases%>%
   mutate(sequencing_laboratory=as.factor(sequencing_laboratory)) %>% 
   mutate(child=as.integer(adult_child=="child")) %>% 
   mutate(solved=as.integer(solved=="solved")) %>%
-  mutate(pedia=as.integer(!is.na(Face2Gene_ID))) %>%
+  mutate(pedia=as.integer(!is.na(GestaltMatcher_ID))) %>%
   mutate(sex=as.integer(sex=="female"))
 
 

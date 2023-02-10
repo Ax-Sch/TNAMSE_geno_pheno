@@ -207,8 +207,8 @@ knitr::kable(sig_table$p.value, digits=15)
 
 
 ```{r test_pedia}
-pedias<-all_cases %>% filter(!is.na(Face2Gene_ID))
-non_pedias<-all_cases %>% filter(is.na(Face2Gene_ID))
+pedias<-all_cases %>% filter(!is.na(GestaltMatcher_ID))
+non_pedias<-all_cases %>% filter(is.na(GestaltMatcher_ID))
 
 print("count of Pedia cases:")
 nrow(pedias)

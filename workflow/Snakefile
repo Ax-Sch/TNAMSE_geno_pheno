@@ -20,7 +20,7 @@ rule all:
 
 rule parse_table:
 	input:
-		case_table=config["case_table"],
+		case_table=config["supp_table"],
 		HGNC_table=config["HGNC"],
 		renaming_scheme=config["renaming"]
 	output:
@@ -50,7 +50,7 @@ rule create_solved_gene_table:
 		in_c="results/parse_table/all_cases_red.tsv",
 		in_v="results/parse_table/all_vars.tsv",
 		renaming="resources/renaming_inheritance.tsv",
-		candidates=config["novel_table"],
+		candidates=config["supp_table"],
 	output:
 		"results/parse_table/diagnostic_vars.tsv",
 		"results/parse_table/VUS.tsv",
@@ -66,7 +66,7 @@ rule create_solved_gene_table:
 		{input.in_c} \
 		{input.in_v} \
 		{input.renaming} \
-		{input.candidates} \
+		"{input.candidates}" \
 		{params.depth}
 		""" 
 
@@ -266,7 +266,6 @@ rule supporting_ccds_length:
 		ccds_seq="resources/CCDS2Sequence.current.txt",
 		ccds_cur="resources/CCDS.current.txt",
 		hgnc="resources/HGNC_gene_names_ids",
-		candidates=config["novel_table"],
 		diagnostic_vars="results/parse_table/diagnostic_vars.tsv",
 		mim_titles="resources/mimTitles.txt",
 		genemap2="resources/genemap2_15_07_2021.txt",
@@ -291,7 +290,6 @@ rule supporting_ccds_length:
 		
 		Rscript -e "library(knitr); rmarkdown::render('supp_CCDS_plot.R', 'html_document')" \
 		{input.diagnostic_vars} \
-		{input.candidates} \
 		{params.ccds_lengths} \
 		{input.mim_titles} \
 		{input.genemap2} \

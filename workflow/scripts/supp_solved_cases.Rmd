@@ -31,7 +31,7 @@ all_variants<-read_tsv(path_variants, guess_max = 2000,
 renaming_inh<-read_tsv(path_renaming_inh, na = "NA")
 
 candidates<-read_excel(path=path_candidate, 
-                       sheet = "DGG_Candidates_Supplement") 
+                       sheet = "S3") 
 ```
 
   
@@ -78,7 +78,7 @@ all_variants<-all_variants%>%
   
 
 candidates<-candidates %>%
-  rename(case_id=`Case ID`,
+  rename(case_id=case_ID_paper,
          gene=Gene_name)%>%
   mutate(case_id=str_replace(case_id, fixed("case "), ""))%>%
   filter(!is.na(case_id))

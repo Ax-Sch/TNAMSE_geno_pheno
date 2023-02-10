@@ -33,7 +33,13 @@ max_clinvar<-max(all_w_clinvar_no_tumor$number_of_variants_clinvar, na.rm=TRUE)
 max_cumsum_TNAMSE<-max(all_w_clinvar_no_tumor$cumsum_TNAMSE[!is.na(all_w_clinvar_no_tumor$cumsum_TNAMSE)])
 max_cumsum_clinvar<-max(all_w_clinvar_no_tumor$cumsum_clinvar, na.rm=TRUE)
 
+
 quart_clinv<-total_clinvar/4
+print("total clinvar")
+print(total_clinvar)
+
+print("Clinvar quarter size")
+print(quart_clinv)
 
 all_w_clinvar_no_tumor<-all_w_clinvar_no_tumor %>% 
   mutate(clinvar_quarter=cut(all_w_clinvar_no_tumor$cumsum_clinvar, 
@@ -47,7 +53,16 @@ all_w_clinvar_no_tumor<-all_w_clinvar_no_tumor %>%
   mutate(rel_clinvar=number_of_variants_clinvar/total_clinvar)
 
 
+cv_quarters<-all_w_clinvar_no_tumor%>% 
+  group_by(clinvar_quarter)%>%
+  summarise(max_cv=max(cumsum_clinvar))%>%
+  distinct(clinvar_quarter, max_cv)
+
+
+print("genes in quarters")
 print(table(all_w_clinvar_no_tumor$clinvar_quarter))
+print("cumulative vars relative to quarters")
+print(cv_quarters)
 
 all_w_clinvar_no_tumor_sorted_year<-all_w_clinvar_no_tumor %>% 
   arrange(str_sort(year_range, numeric=TRUE))%>%

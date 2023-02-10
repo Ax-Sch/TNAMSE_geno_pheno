@@ -3,33 +3,37 @@ library(readxl)
 library(ggpubr)
 # for debug
 args = c("results/parse_table/diagnostic_vars.tsv", 
-         "suppl_tables/Supplementary_Table_3_Novel.xlsx",
          "results/supporting_ccds/ccds_lengths.tsv",
          "resources/mimTitles.txt", 
          "resources/genemap2_15_07_2021.txt", 
          "../../")
 
 args = commandArgs(trailingOnly=TRUE)
-depth<-args[6]
+depth<-args[5]
 variants_TN_file<-paste0(depth, args[1]) #
-candidates_file<-paste0(depth, args[2]) #
-ccds_lengths_file<-paste0(depth, args[3]) 
-mim_titles_file<-paste0(depth, args[4]) # "resources/mimTitles.txt"
-genemap2_file<-paste0(depth, args[5])
+ccds_lengths_file<-paste0(depth, args[2]) 
+mim_titles_file<-paste0(depth, args[3]) # "resources/mimTitles.txt"
+genemap2_file<-paste0(depth, args[4])
 
 variants_TN<-read_tsv(variants_TN_file) %>%
   rename(path_classes_split=ACMG_class,
          Disease_gene_split=gene)
 
-candidate_genes<-read_xlsx(candidates_file)%>%
-  filter(!is.na(Gene_name))
+#candidate_genes<-read_xlsx(candidates_file)%>%
+#  filter(!is.na(Gene_name))
 
-unique(candidate_genes$Classification)
+#unique(candidate_genes$Classification)
 
-DGG_or_high<-candidate_genes%>%
-  filter(Classification %in% c("diagnostic grade gene", "high evidence"))
-DGG_or_high_gene_name<-unique(DGG_or_high$Gene_name)
-length(DGG_or_high_gene_name)
+DGG_or_high<-variants_TN%>%
+  filter(candidate)
+
+n_cases<-length(unique(DGG_or_high$case_ID_paper))
+n_genes<-length(unique(DGG_or_high$Disease_gene_split))
+
+print(paste0("Number of cases: ", n_cases))
+print(paste0("Number of genes: ", n_genes))
+
+DGG_or_high_gene_name<-unique(DGG_or_high$Disease_gene_split)
 
 ccds_lengths<-read_tsv(ccds_lengths_file) %>% 
   filter(!is.na(HGNC_name))
@@ -47,13 +51,13 @@ TN_diagnostic_genes <- variants_TN %>%
   filter(!Disease_gene_split %in% DGG_or_high_gene_name)%>%
   distinct(Disease_gene_split) %>%  
   left_join(ccds_lengths, by=c("Disease_gene_split"="HGNC_name")) %>%
-  mutate(case="TN solved, known DGG") %>% 
+  mutate(case="TN_Diagnostic") %>% 
   dplyr::select(case, max_ccds_gene)
 
 TN_novel_genes <- DGG_or_high %>% 
-  distinct(Gene_name) %>%  
-  left_join(ccds_lengths, by=c("Gene_name"="HGNC_name")) %>%
-  mutate(case="TN solved, novel") %>% 
+  distinct(Disease_gene_split) %>%  
+  left_join(ccds_lengths, by=c("Disease_gene_split"="HGNC_name")) %>%
+  mutate(case="TN_Research") %>% 
   dplyr::select(case, max_ccds_gene)
 
 genemap2<-genemap2 %>%
