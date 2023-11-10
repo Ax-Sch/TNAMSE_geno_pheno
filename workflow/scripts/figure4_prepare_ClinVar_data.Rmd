@@ -25,7 +25,9 @@ clinvar_tsv<-read_tsv(in_file)
 unique(clinvar_tsv$ClinicalSignificance)
 
 pathogenic_ratings<-c("Pathogenic", "Likely pathogenic", "Likely pathogenic, risk factor", "Pathogenic, risk factor", "Pathogenic/Likely pathogenic, risk factor")
-relevant_clinvar<-clinvar_tsv %>% filter(ClinicalSignificance %in% pathogenic_ratings)
+relevant_clinvar<-clinvar_tsv %>% 
+  filter(ClinicalSignificance %in% pathogenic_ratings)%>%
+  filter(Assembly=="GRCh37")
 
 clinvar_variant_count<-relevant_clinvar %>% 
   group_by(GeneSymbol, GeneID) %>%

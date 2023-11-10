@@ -191,7 +191,7 @@ rule figure4_combine_CV_TN_TU:
 		cv="results/figure4/ClinVar_table.tsv",
 		tn="results/figure4/TN_vars_count.tsv",
 		tu="results/figure4/Turro_variant_table.txt",
-		cancer_g="resources/cancer_genes.txt",
+		cancer_g="resources/ACMG_v2_59secondary.txt",
 		year="resources/genes_year_of_first_report.xlsx",
 		hgnc="resources/HGNC_symbols.txt"
 	output:

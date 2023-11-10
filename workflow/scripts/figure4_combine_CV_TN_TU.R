@@ -5,7 +5,7 @@ library(readxl)
 args=c("results/figure4/ClinVar_table.tsv",
 "results/figure4/TN_vars_count.tsv",
 "results/figure4/Turro_variant_table.txt",
-"resources/cancer_genes.txt",
+"resources/ACMG_v2_59secondary",
 "resources/genes_year_of_first_report.xlsx",
 "resources/HGNC_symbols.txt",
 "../../")

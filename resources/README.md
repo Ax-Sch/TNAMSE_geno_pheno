@@ -37,7 +37,7 @@ HPO-related data:
 - hpo_categorization_19_12_2022.tsv: Grouping of HPO terms
 
 Figure 4:
-- cancer_genes.txt: List of Cancer genes for exclusion
+- ACMG_v2_59secondary.txt: List of ACMG Secondary Findings genes (Version 2, 59 genes) for exclusion; in conformity with HGNC_symbols.txt
 - genes_year_of_first_report.xlsx: List of genes and the year of their first description as a disease gene. This file was manually created.
 - variant_summary.txt.gz : ClinVar Data.
 
