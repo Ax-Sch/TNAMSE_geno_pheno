@@ -9,6 +9,8 @@ You can either run the whole pipeline, or you can run scripts individually. If y
 Clone the repository, then install the tnamse conda environment that can be found in envs/tnamse.yaml .
 
 ```
+git clone https://github.com/Ax-Sch/TNAMSE_geno_pheno.git
+cd TNAMSE_geno_pheno
 conda env update -n tnamse --file workflow/envs/tnamse.yaml
 ```
 
