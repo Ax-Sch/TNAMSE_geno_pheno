@@ -1,19 +1,22 @@
 # TNAMSE - analysis of phenotypic and molecular data
 
-Scripts for producing the figures of the analysis of the phenotypic and molecular data of the TRANSLATE-NAMSE project. The individual R-scripts were integrated in an automated snakemake pipeline to facilitate regeneration of analyses during data cleaning. Individual R-scripts are named according to the figures for which they yield the data.
+Scripts for producing the figures of the analysis of the phenotypic and molecular data of the TRANSLATE-NAMSE project. The individual R-scripts (located in the folder workflow/scripts/) were integrated in an automated snakemake pipeline to facilitate regeneration of analyses during data cleaning. Individual R-scripts are named according to the figures for which they yield the data.
 
 You can either run the whole pipeline, or you can run scripts individually. If you are looking for our tool YieldPred please visit the following website: https://translate-namse.de/ .
 
 ### General
 
-Clone the repository, then install the tnamse conda environment that can be found in envs/tnamse.yaml .
+Clone the repository, then install the tnamse conda environment that can be found in workflow/envs/tnamse.yaml . Note: If you are using a MacOS / Apple Silicon system, see the comment in the code below.
 
 ```
 git clone https://github.com/Ax-Sch/TNAMSE_geno_pheno.git
 cd TNAMSE_geno_pheno
-conda env update -n tnamse --file workflow/envs/tnamse.yaml
+conda create -n tnamse --yes
+conda activate tnamse
+# if you are using an MacOS on an Apple Silicon system, uncomment the following line:
+#conda config --env --set subdir osx-64
+conda env update --file workflow/envs/tnamse.yaml
 ```
-
 The R-packages webr / moonBook have to be installed manually, as it is not available via conda. Install them in R via:
 
 - Run R:
