@@ -3,7 +3,7 @@ configfile: "config/config.yaml"
 rule all:
 	input:
 		"results/parse_table/all_cases_red.tsv",
-		"results/figure1/figure1_part1.html",
+		#"results/figure1/figure1_part1.html",
 		"results/figure2/figure2_part1.html",
 		"results/figure5/figure5_lasso_analysis_TNAMSE_cohort.html",
 		"results/figure3/figure3.html",
@@ -49,7 +49,8 @@ rule create_solved_gene_table:
 	input:
 		in_c="results/parse_table/all_cases_red.tsv",
 		in_v="results/parse_table/all_vars.tsv",
-		renaming="resources/renaming_inheritance.tsv",
+		renaming_inh="resources/renaming_inheritance.tsv",
+		renaming_cand="resources/renaming_candidates.tsv",	
 		candidates=config["supp_table"],
 	output:
 		"results/parse_table/diagnostic_vars.tsv",
@@ -65,7 +66,8 @@ rule create_solved_gene_table:
 		Rscript -e "library(knitr); rmarkdown::render('supp_solved_cases.Rmd', 'html_document')" \
 		{input.in_c} \
 		{input.in_v} \
-		{input.renaming} \
+		{input.renaming_inh} \
+		{input.renaming_cand} \
 		"{input.candidates}" \
 		{params.depth}
 		""" 
