@@ -52,6 +52,8 @@ all_w_clinvar_no_tumor<-all_w_clinvar_no_tumor %>%
   mutate(rel_turro=number_of_variants_turro/total_turro)%>%
   mutate(rel_clinvar=number_of_variants_clinvar/total_clinvar)
 
+write_tsv(x=all_w_clinvar_no_tumor, 
+          file="all_w_clinvar_no_tumor.tsv")
 
 cv_quarters<-all_w_clinvar_no_tumor%>% 
   group_by(clinvar_quarter)%>%
