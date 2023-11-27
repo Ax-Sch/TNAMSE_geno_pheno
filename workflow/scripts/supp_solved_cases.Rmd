@@ -11,16 +11,18 @@ library(readxl)
 args=c("results/parse_table/all_cases_red.tsv", 
        "results/parse_table/all_vars.tsv", 
        "resources/renaming_inheritance.tsv", 
-       "suppl_tables/Supplementary_Table_3_Novel.xlsx",
+       "resources/renaming_candidates.tsv", 
+       "resources/Supplementary Tables.xlsx",
        "../../" )
 
 args = commandArgs(trailingOnly=TRUE)
 
-depth<-args[5]
+depth<-args[6]
 path_cases<-paste0(depth, args[1])
 path_variants<-paste0(depth, args[2])
 path_renaming_inh<-paste0(depth, args[3])
-path_candidate<-paste0(depth, args[4])
+path_renaming_cand<-paste0(depth, args[4])
+path_candidate<-paste0(depth, args[5])
 
 all_cases<-read_tsv(path_cases, guess_max = 2000, 
                     locale=locale(decimal_mark = ",")) 
@@ -29,6 +31,9 @@ all_variants<-read_tsv(path_variants, guess_max = 2000,
                     locale=locale(decimal_mark = ",")) 
 
 renaming_inh<-read_tsv(path_renaming_inh, na = "NA")
+
+renaming_cand<-read_tsv(path_renaming_cand, na = "NA")
+
 
 candidates<-read_excel(path=path_candidate, 
                        sheet = "S3") 
@@ -90,6 +95,14 @@ all_variants<-all_variants %>%
 length(unique((all_variants %>% filter(candidate==TRUE))$gene))
 length(unique(candidates$gene))
 
+# replace candidates with true gene symbol
+for (i in 1:nrow(renaming_cand)){
+  old_value<-renaming_cand$old_value[i]
+  replace_to<-renaming_cand$replace_to[i]
+  <-all_variants %>% 
+    mutate(gene=str_replace(gene, pattern = paste0(old_value,"$"), replacement = replace_to))%>%
+    mutate(HGVS_cDNA=str_replace(HGVS_cDNA, pattern = paste0(old_value,":c"), replacement = paste0(replace_to,":c")))
+}
 
 
 Case_Var<-all_variants %>%
