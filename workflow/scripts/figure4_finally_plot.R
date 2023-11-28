@@ -52,6 +52,13 @@ all_w_clinvar_no_tumor<-all_w_clinvar_no_tumor %>%
   mutate(rel_turro=number_of_variants_turro/total_turro)%>%
   mutate(rel_clinvar=number_of_variants_clinvar/total_clinvar)
 
+# change years / clinvar quartile to factor
+all_w_clinvar_no_tumor<-all_w_clinvar_no_tumor %>% 
+  arrange(str_sort(year_range, numeric=TRUE))%>%
+  mutate(year_range=factor(year_range, levels=unique(year_range)))%>% 
+  arrange((clinvar_quarter))%>%
+  mutate(clinvar_quarter=factor(clinvar_quarter, levels=unique(clinvar_quarter)))
+
 write_tsv(x=all_w_clinvar_no_tumor, 
           file="all_w_clinvar_no_tumor.tsv")
 
@@ -66,9 +73,7 @@ print(table(all_w_clinvar_no_tumor$clinvar_quarter))
 print("cumulative vars relative to quarters")
 print(cv_quarters)
 
-all_w_clinvar_no_tumor_sorted_year<-all_w_clinvar_no_tumor %>% 
-  arrange(str_sort(year_range, numeric=TRUE))%>%
-  mutate(year_range=factor(year_range, levels=unique(year_range)))
+
 
 all_w_clinvar_no_tumor_sorted_clinvar<-all_w_clinvar_no_tumor %>% 
   arrange(desc(clinvar_quarter))%>%
@@ -95,8 +100,6 @@ ggsave(freq_clinvar_vs_turro, filename = "freq_clinvar_vs_turro.pdf", width=4.5,
 
 
 
-
-
 # Bar plots numbers
 plot_number<-ggplot() + 
   geom_bar(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_turro), aes(x="Turro et al.",y=number_of_variants_turro), color="grey40",position="stack", fill="white",stat="identity", width=0.7) + 
@@ -107,20 +110,12 @@ plot_number
 ggsave(file="plot_numbers.pdf",plot_number, width=1.8, height=3.2)
 
 # Bar plots years
-plot_year_range_abs<-ggplot() + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-number_of_variants_turro), aes(x="Turro et al.",y=number_of_variants_turro, color=year_range),position="stack", fill="white",stat="identity") + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-number_of_variants_tnamse), aes(x="TNAMSE",y=number_of_variants_tnamse, color=year_range),position="stack", fill="white",stat="identity") + 
-  theme_minimal()
-plot_year_range_abs
-ggsave(file="plot_year_range_abs.pdf",plot_year_range_abs, width=3, height=5)
-
-plot_year_range_rel<-ggplot() + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-number_of_variants_turro), aes(x="Turro et al.",y=rel_turro, color=year_range),position="stack", fill="white",stat="identity") + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-number_of_variants_tnamse), aes(x="TNAMSE",y=rel_tnamse, color=year_range),position="stack", fill="white",stat="identity") + 
+plot_year_tn<-ggplot(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-number_of_variants_tnamse)) + # %>% filter(!is.na(year_range))
+  geom_bar( aes(x=year_range,y=number_of_variants_tnamse, color=year_range),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
-  theme(axis.text.x = element_text(angle = 45))
-plot_year_range_rel
-ggsave(file="plot_year_range_rel.pdf",plot_year_range_rel, width=3, height=5)
+  theme(axis.text.x = element_text(angle = 45, hjust=0.95))
+plot_year_tn
+ggsave(file="plot_year_tn.pdf",plot_year_tn, width=4.0, height=3.2)
 
 plot_year_turro<-ggplot(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-number_of_variants_turro) ) + #%>% filter(!is.na(year_range))
   geom_bar( aes(x=year_range,y=number_of_variants_turro, color=year_range),position="stack", fill="white",stat="identity", width=0.7) + 
@@ -129,79 +124,24 @@ plot_year_turro<-ggplot(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-num
 plot_year_turro
 ggsave(file="plot_year_turro.pdf",plot_year_turro, width=4.0, height=3.2)
 
-plot_year_tn<-ggplot(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-number_of_variants_tnamse)) + # %>% filter(!is.na(year_range))
-  geom_bar( aes(x=year_range,y=number_of_variants_tnamse, color=year_range),position="stack", fill="white",stat="identity", width=0.7) + 
-  theme_minimal()+
-  theme(axis.text.x = element_text(angle = 45, hjust=0.95))
-plot_year_tn
-ggsave(file="plot_year_tn.pdf",plot_year_tn, width=4.0, height=3.2)
 
-
-
-
-# Bar plots ClinVar quartiles
-ggplot() + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_turro) %>% filter(!is.na(clinvar_quarter)), aes(x="Turro et al.",y=number_of_variants_turro, color=clinvar_quarter),position="stack", fill="white",stat="identity") + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_tnamse) %>% filter(!is.na(clinvar_quarter)), aes(x="TNAMSE",y=number_of_variants_tnamse, color=clinvar_quarter),position="stack", fill="white",stat="identity")+
-  theme_minimal()
-
-plot_clinvar<-ggplot() + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_turro), aes(x="Turro et al.",y=rel_turro, color=clinvar_quarter),position="stack", fill="white",stat="identity") + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_tnamse), aes(x="TNAMSE",y=rel_tnamse, color=clinvar_quarter),position="stack", fill="white",stat="identity") + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_clinvar), aes(x="ClinVar",y=rel_clinvar, color=clinvar_quarter),position="stack", fill="white",stat="identity") + 
-  theme_minimal()+
-  theme(axis.text.x = element_text(angle = 45))
-
-plot_clinvar
-
-
-plot_clinvar<-ggplot() + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_tnamse), aes(x="TNAMSE",y=rel_tnamse, color=clinvar_quarter, fill=clinvar_quarter),position="stack", stat="identity") + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_clinvar), aes(x="ClinVar",y=rel_clinvar, color=clinvar_quarter, fill=clinvar_quarter),position="stack",stat="identity") + 
-  theme_minimal()+
-  theme(axis.text.x = element_text(angle = 45))
-
-
-ggsave(file="plot_clinvar_quartile_stacked.pdf",plot_clinvar, width=3, height=5)
-
-
-plot_year_range<-ggplot() + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_tnamse), aes(x=year_range,y=rel_tnamse, fill=year_range, color=year_range),position="stack", stat="identity") + 
-  theme_minimal()+
-  theme(axis.text.x = element_text(angle = 45))+
-  facet_grid(vars(clinvar_quarter), scales="free")
-
-
-ggsave(file="plot_year_range_binned_by_clinvar.pdf",plot_year_range, width=3, height=6)
-
-
-
-ggsave(file="plot_clinvar.pdf",plot_clinvar, width=3, height=5)
-
-
-
-
-all_w_clinvar_no_tumor_sorted_clinvar<-all_w_clinvar_no_tumor %>% 
-  arrange((clinvar_quarter))%>%
-  mutate(clinvar_quarter=factor(clinvar_quarter, levels=unique(clinvar_quarter)))
-
+# ClinVar Quartiles
 plot_clinvar_clinvar<-ggplot() + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_clinvar), aes(x=clinvar_quarter,y=number_of_variants_clinvar, color=clinvar_quarter),position="stack", fill="white",stat="identity") + 
+  geom_bar(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_clinvar), aes(x=clinvar_quarter,y=number_of_variants_clinvar, color=clinvar_quarter),position="stack", fill="white",stat="identity") + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45))
-
 ggsave(file="plot_clinvar_clinvar.pdf",plot_clinvar_clinvar, width=4.5, height=7)
 
 
 plot_clinvar_turro<-ggplot() + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_turro), aes(x=clinvar_quarter,y=number_of_variants_turro, color=clinvar_quarter),position="stack", fill="white",stat="identity", width=0.7) + 
+  geom_bar(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_turro), aes(x=clinvar_quarter,y=number_of_variants_turro, color=clinvar_quarter),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
 
 ggsave(file="plot_clinvar_turro.pdf",plot_clinvar_turro, width=4.0, height=3.2)
 
 plot_clinvar_tn<-ggplot() + 
-  geom_bar(data=all_w_clinvar_no_tumor_sorted_clinvar %>% arrange(-number_of_variants_tnamse), aes(x=clinvar_quarter,y=number_of_variants_tnamse, color=clinvar_quarter),position="stack", fill="white",stat="identity", width=0.7) + 
+  geom_bar(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_tnamse), aes(x=clinvar_quarter,y=number_of_variants_tnamse, color=clinvar_quarter),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
 
@@ -215,13 +155,5 @@ tnamse <- rep(unique(all_w_clinvar_no_tumor$Year),times=sapply(unique(all_w_clin
 ks.test(turro,clinvar)
 ks.test(turro,tnamse)
   
-#tnamse_gene_list<-read_tsv("tnamse_gene_list.txt", col_names = c("gene_list","Freq")) %>% filter(Freq!=0)
 
-#tnamse_gene_list<- tnamse_gene_list %>% arrange(-Freq)
-#tnamse_gene_list$Freq<-factor(tnamse_gene_list$Freq, levels=unique(gene_counts$Freq))
-
-#ggplot() + geom_bar(data=tnamse_gene_list, aes(x="gene_list",y=Freq),position="stack", stat="identity", colour="white", fill="black") + 
-#geom_bar(data=gene_counts, aes(x="turro",y=Freq),position="stack", stat="identity", colour="white", fill="black") + 
-#  theme(legend.position = "none")  + 
-#  scale_fill_grey()
 
