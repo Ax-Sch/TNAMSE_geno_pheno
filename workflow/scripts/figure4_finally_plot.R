@@ -110,14 +110,14 @@ plot_number
 ggsave(file="plot_numbers.pdf",plot_number, width=1.8, height=3.2)
 
 # Bar plots years
-plot_year_tn<-ggplot(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-number_of_variants_tnamse)) + # %>% filter(!is.na(year_range))
+plot_year_tn<-ggplot(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_tnamse)) + # %>% filter(!is.na(year_range))
   geom_bar( aes(x=year_range,y=number_of_variants_tnamse, color=year_range),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
 plot_year_tn
 ggsave(file="plot_year_tn.pdf",plot_year_tn, width=4.0, height=3.2)
 
-plot_year_turro<-ggplot(data=all_w_clinvar_no_tumor_sorted_year %>% arrange(-number_of_variants_turro) ) + #%>% filter(!is.na(year_range))
+plot_year_turro<-ggplot(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_turro) ) + #%>% filter(!is.na(year_range))
   geom_bar( aes(x=year_range,y=number_of_variants_turro, color=year_range),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
