@@ -99,7 +99,7 @@ length(unique(candidates$gene))
 for (i in 1:nrow(renaming_cand)){
   old_value<-renaming_cand$old_value[i]
   replace_to<-renaming_cand$replace_to[i]
-  <-all_variants %>% 
+  all_variants<-all_variants %>% 
     mutate(gene=str_replace(gene, pattern = paste0(old_value,"$"), replacement = replace_to))%>%
     mutate(HGVS_cDNA=str_replace(HGVS_cDNA, pattern = paste0(old_value,":c"), replacement = paste0(replace_to,":c")))
 }
