@@ -13,6 +13,13 @@ all_w_clinvar_path<-paste0(depth, args[1]) #
 
 all_w_clinvar<-read_tsv(all_w_clinvar_path)
 
+# Check how many variants are in tumor/ACMGv2 genes:
+print("Number of variants in tumor genes in TNAMSE, Turro and ClinVar + histogram for ClinVar:")
+sum((all_w_clinvar %>% filter(cancer_gene==TRUE))$number_of_variants_tnamse, na.rm=TRUE)
+sum((all_w_clinvar %>% filter(cancer_gene==TRUE))$number_of_variants_turro, na.rm=TRUE)
+cv_tumor<-(all_w_clinvar %>% filter(cancer_gene==TRUE))$number_of_variants_clinvar
+sum(cv_tumor, na.rm=TRUE)
+qplot(cv_tumor)+ theme_minimal()
 
 # Further prepare the data
 all_w_clinvar_no_tumor<-all_w_clinvar %>%
@@ -93,7 +100,7 @@ plot_number<-ggplot() +
   geom_bar(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_tnamse), aes(x="TNAMSE",y=number_of_variants_tnamse), color="grey40",position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45))
-plot_number
+print(plot_number)
 ggsave(file="plot_numbers.pdf",plot_number, width=1.8, height=3.2)
 
 
@@ -102,14 +109,14 @@ plot_year_tn<-ggplot(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants
   geom_bar( aes(x=year_range,y=number_of_variants_tnamse, color=year_range),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
-plot_year_tn
+print(plot_year_tn)
 ggsave(file="plot_year_tn.pdf",plot_year_tn, width=4.0, height=3.2)
 
 plot_year_turro<-ggplot(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_turro) ) + #%>% filter(!is.na(year_range))
   geom_bar( aes(x=year_range,y=number_of_variants_turro, color=year_range),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
-plot_year_turro
+print(plot_year_turro)
 ggsave(file="plot_year_turro.pdf",plot_year_turro, width=4.0, height=3.2)
 
 
@@ -119,6 +126,7 @@ plot_clinvar_clinvar<-ggplot() +
            aes(x=clinvar_quarter,y=number_of_variants_clinvar, color=clinvar_quarter),position="stack", fill="white",stat="identity") + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45))
+print(plot_clinvar_clinvar)
 ggsave(file="plot_clinvar_clinvar.pdf",plot_clinvar_clinvar, width=4.5, height=7)
 
 plot_clinvar_turro<-ggplot() + 
@@ -126,7 +134,7 @@ plot_clinvar_turro<-ggplot() +
            aes(x=clinvar_quarter,y=number_of_variants_turro, color=clinvar_quarter),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
-
+print(plot_clinvar_turro)
 ggsave(file="plot_clinvar_turro.pdf",plot_clinvar_turro, width=4.0, height=3.2)
 
 plot_clinvar_tn<-ggplot() + 
@@ -134,7 +142,7 @@ plot_clinvar_tn<-ggplot() +
            aes(x=clinvar_quarter,y=number_of_variants_tnamse, color=clinvar_quarter),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
-
+print(plot_clinvar_tn)
 ggsave(file="plot_clinvar_tn.pdf",plot_clinvar_tn, width=4.0, height=3.2)
 
 
