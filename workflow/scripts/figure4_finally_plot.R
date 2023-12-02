@@ -10,6 +10,7 @@ args=c(
 args = commandArgs(trailingOnly=TRUE)
 depth<-args[2]
 all_w_clinvar_path<-paste0(depth, args[1]) #
+KEEP_TUMOR="w_ACMG"
 
 all_w_clinvar<-read_tsv(all_w_clinvar_path)
 
@@ -21,10 +22,17 @@ cv_tumor<-(all_w_clinvar %>% filter(cancer_gene==TRUE))$number_of_variants_clinv
 sum(cv_tumor, na.rm=TRUE)
 qplot(cv_tumor)+ theme_minimal()
 
+# remove tumor/ACMGv2 genes
+if (KEEP_TUMOR=="w_ACMG"){
+  all_w_clinvar_no_tumor<-all_w_clinvar 
+}else{
+  all_w_clinvar_no_tumor<-all_w_clinvar %>%
+    filter(cancer_gene==FALSE)
+}
+
 # Further prepare the data
-all_w_clinvar_no_tumor<-all_w_clinvar %>%
+all_w_clinvar_no_tumor<-all_w_clinvar_no_tumor %>%
   mutate(number_of_variants_clinvar=replace_na(data=number_of_variants_clinvar, replace=0))%>%
-  filter(cancer_gene==FALSE)  %>%
   arrange(-number_of_variants_clinvar)%>% 
   mutate(cumsum_clinvar=cumsum(number_of_variants_clinvar))
 
@@ -42,23 +50,26 @@ print(total_clinvar)
 print("Clinvar quarter size")
 print(quart_clinv)
 
+QUARTILE_NAMES<-c("first","second","third","fourth")
+YEAR_NAMES<-c("-2000","2001-2010","2011-2022")
+
 all_w_clinvar_no_tumor<-all_w_clinvar_no_tumor %>% 
   mutate(clinvar_quarter=cut(all_w_clinvar_no_tumor$cumsum_clinvar, 
                              breaks=c(0, quart_clinv*1, quart_clinv*2, quart_clinv*3, quart_clinv*4), 
-                             labels=c("first","second","third","fourth"))) %>%
+                             labels=QUARTILE_NAMES)) %>%
   mutate(year_range=cut(Year, 
                         breaks=c(1900, 2000, 2010, 2022), 
-                        labels=c("-2000","2001-2010","2011-2022")))
+                        labels=YEAR_NAMES))
 
 # change years / clinvar quartile to factor
 all_w_clinvar_no_tumor<-all_w_clinvar_no_tumor %>% 
   arrange(str_sort(year_range, numeric=TRUE))%>%
-  mutate(year_range=factor(year_range, levels=unique(year_range)))%>% 
+  mutate(year_range=factor(year_range, levels=YEAR_NAMES))%>% 
   arrange((clinvar_quarter))%>%
-  mutate(clinvar_quarter=factor(clinvar_quarter, levels=unique(clinvar_quarter)))
+  mutate(clinvar_quarter=factor(clinvar_quarter, levels=QUARTILE_NAMES))
 
 write_tsv(x=all_w_clinvar_no_tumor, 
-          file="all_w_clinvar_no_tumor.tsv")
+          file=paste0("all_w_clinvar_",KEEP_TUMOR,".tsv"))
 
 
 print("genes in quarters")
@@ -81,7 +92,9 @@ freq_clinvar_vs_tnamse<-ggplot(all_w_clinvar_no_tumor)+
               aes(x=cumsum_clinvar,y=number_of_variants_tnamse/max_TNAMSE, color=year_range))+
   theme_bw()
 print(freq_clinvar_vs_tnamse)
-ggsave(freq_clinvar_vs_tnamse, filename = "freq_clinvar_vs_tnamse.pdf", width=4.5, height=3.0)
+ggsave(freq_clinvar_vs_tnamse, 
+       filename = paste0("freq_clinvar_vs_tnamse_",KEEP_TUMOR,".pdf"), 
+       width=4.5, height=3.0)
 
 freq_clinvar_vs_turro<-ggplot(all_w_clinvar_no_tumor)+
   geom_line(aes(x=cumsum_clinvar,y=number_of_variants_clinvar/max_clinvar), size=0.5)+
@@ -90,7 +103,8 @@ freq_clinvar_vs_turro<-ggplot(all_w_clinvar_no_tumor)+
               aes(x=cumsum_clinvar,y=number_of_variants_turro/max_Turro, color=year_range))+
   theme_bw()
 print(freq_clinvar_vs_turro)
-ggsave(freq_clinvar_vs_turro, filename = "freq_clinvar_vs_turro.pdf", width=4.5, height=3.0)
+ggsave(freq_clinvar_vs_turro, filename = paste0("freq_clinvar_vs_turro_",KEEP_TUMOR,".pdf"), 
+       width=4.5, height=3.0)
 
 
 
@@ -101,7 +115,8 @@ plot_number<-ggplot() +
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45))
 print(plot_number)
-ggsave(file="plot_numbers.pdf",plot_number, width=1.8, height=3.2)
+ggsave(file=paste0("plot_numbers_",KEEP_TUMOR,".pdf"),
+       plot_number, width=1.8, height=3.2)
 
 
 # Years first report
@@ -110,14 +125,16 @@ plot_year_tn<-ggplot(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
 print(plot_year_tn)
-ggsave(file="plot_year_tn.pdf",plot_year_tn, width=4.0, height=3.2)
+ggsave(file=paste0("plot_year_tn_",KEEP_TUMOR,".pdf"),
+       plot_year_tn, width=4.0, height=3.2)
 
 plot_year_turro<-ggplot(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_turro) ) + #%>% filter(!is.na(year_range))
   geom_bar( aes(x=year_range,y=number_of_variants_turro, color=year_range),position="stack", fill="white",stat="identity", width=0.7) + 
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
 print(plot_year_turro)
-ggsave(file="plot_year_turro.pdf",plot_year_turro, width=4.0, height=3.2)
+ggsave(file=paste0("plot_year_turro_",KEEP_TUMOR,".pdf"),
+       plot_year_turro, width=4.0, height=3.2)
 
 
 # ClinVar Quartiles
@@ -127,7 +144,8 @@ plot_clinvar_clinvar<-ggplot() +
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45))
 print(plot_clinvar_clinvar)
-ggsave(file="plot_clinvar_clinvar.pdf",plot_clinvar_clinvar, width=4.5, height=7)
+ggsave(file=paste0("plot_clinvar_clinvar_",KEEP_TUMOR,".pdf"),
+       plot_clinvar_clinvar, width=4.5, height=7)
 
 plot_clinvar_turro<-ggplot() + 
   geom_bar(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_turro), 
@@ -135,7 +153,8 @@ plot_clinvar_turro<-ggplot() +
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
 print(plot_clinvar_turro)
-ggsave(file="plot_clinvar_turro.pdf",plot_clinvar_turro, width=4.0, height=3.2)
+ggsave(file=paste0("plot_clinvar_turro_",KEEP_TUMOR,".pdf"),
+       plot_clinvar_turro, width=4.0, height=3.2)
 
 plot_clinvar_tn<-ggplot() + 
   geom_bar(data=all_w_clinvar_no_tumor %>% arrange(-number_of_variants_tnamse), 
@@ -143,7 +162,8 @@ plot_clinvar_tn<-ggplot() +
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust=0.95))
 print(plot_clinvar_tn)
-ggsave(file="plot_clinvar_tn.pdf",plot_clinvar_tn, width=4.0, height=3.2)
+ggsave(file=paste0("plot_clinvar_tn_",KEEP_TUMOR,".pdf"),
+       plot_clinvar_tn, width=4.0, height=3.2)
 
 
 #### Kolmogorov-Smirnoff-Test
