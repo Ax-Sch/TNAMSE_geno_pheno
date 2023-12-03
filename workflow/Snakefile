@@ -18,11 +18,23 @@ rule all:
 		#"results/supporting_ccds/supp_CCDS_plot.html",
 		#"results/figure1/figure1_part2.html",
 
+
+rule download_supplement:
+	output:
+		"resources/supplementary_table.xlsx",
+	params:
+		URL_table=config["supp_table"],
+	shell:
+		"""
+		curl {params.URL_table} \
+		--output {output}
+		"""
+	
 rule parse_table:
 	input:
-		case_table=config["supp_table"],
 		HGNC_table=config["HGNC"],
-		renaming_scheme=config["renaming"]
+		renaming_scheme=config["renaming"],
+		case_table="resources/supplementary_table.xlsx",
 	output:
 		"results/parse_table/all_cases.tsv",
 		"results/parse_table/all_cases_red.tsv",
@@ -34,7 +46,6 @@ rule parse_table:
 		depth="../../"
 	shell:
 		"""
-		mkdir -p {params.out_folder}
 		cp workflow/scripts/parse_table.Rmd {params.out_folder}
 		cd {params.out_folder}
 		Rscript -e "library(knitr); rmarkdown::render('parse_table.Rmd', 'html_document')" \
@@ -51,7 +62,7 @@ rule create_solved_gene_table:
 		in_v="results/parse_table/all_vars.tsv",
 		renaming_inh="resources/renaming_inheritance.tsv",
 		renaming_cand="resources/renaming_candidates.tsv",	
-		candidates=config["supp_table"],
+		candidates="resources/supplementary_table.xlsx",
 	output:
 		"results/parse_table/diagnostic_vars.tsv",
 		"results/parse_table/VUS.tsv",

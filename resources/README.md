@@ -29,9 +29,6 @@ HGNC:
 
 # Files specific to this project:
 
-Supplementary Tables:
-- Supplementary Tables.xlsx
-
 HPO-related data:
 - hpo.obo: HPO release 2021-02-08
 - hpo_categorization_19_12_2022.tsv: Grouping of HPO terms

@@ -1,6 +1,10 @@
 name: vep
 channels:
   - bioconda
+  - conda-forge
+  - default
+  - anaconda
 dependencies:
   - ensembl-vep=101
   - bcftools
+  - wget

@@ -1,4 +1,4 @@
 ---
- supp_table: "resources/Supplementary Tables.xlsx"
+ supp_table: "https://www.medrxiv.org/content/medrxiv/early/2023/04/25/2023.04.19.23288824/DC3/embed/media-3.xlsx?download=true"
  renaming: "resources/renaming_scheme.tsv"
  HGNC: "resources/HGNC_symbols.txt"
