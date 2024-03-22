@@ -10,7 +10,7 @@ args=c(
 args = commandArgs(trailingOnly=TRUE)
 depth<-args[2]
 all_w_clinvar_path<-paste0(depth, args[1]) #
-KEEP_TUMOR="w_ACMG"
+KEEP_TUMOR="wo_ACMG"
 
 all_w_clinvar<-read_tsv(all_w_clinvar_path)
 

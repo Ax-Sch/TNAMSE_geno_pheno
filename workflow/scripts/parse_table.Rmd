@@ -33,7 +33,7 @@ own_name_repair<-function(nmn){
   return(new_name)
 }
 
-all_cases_raw<-read_xlsx(in_file, guess_max = 2000, .name_repair = own_name_repair, sheet="S1")  # remove double occuring cases (for security, should already be removed)
+all_cases_raw<-read_xlsx(in_file, guess_max = 2000, .name_repair = own_name_repair, sheet="S1", skip=2)  # remove double occuring cases (for security, should already be removed)
 
 renaming_scheme<-read_tsv(renaming_scheme_path)
 

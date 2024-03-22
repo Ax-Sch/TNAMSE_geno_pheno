@@ -4,7 +4,7 @@ output: html_document
 date: '2022-10-28'
 ---
 
-```{r load_files, include=FALSE}
+```{r load_files, include=TRUE}
 library(tidyverse)
 library(readxl)
 
@@ -34,14 +34,13 @@ renaming_inh<-read_tsv(path_renaming_inh, na = "NA")
 
 renaming_cand<-read_tsv(path_renaming_cand, na = "NA")
 
-
 candidates<-read_excel(path=path_candidate, 
-                       sheet = "S3") 
+                       sheet = "S3", skip=2) 
 ```
 
   
 
-```{r make_var_lists, include=FALSE}
+```{r make_var_lists, include=TRUE}
 rename_inheritance<-function(inheritance, zygosity, de_novo, renaming_scheme){
   compare_NA<-function(A, B){
     return(is.na(B) | 
@@ -64,7 +63,7 @@ rename_inheritance<-function(inheritance, zygosity, de_novo, renaming_scheme){
                 "de novo matches:" ,sum(compare_NA(de_novo, renaming_scheme$de_novo[i]) )) )
     
   }
- return(renamed_inh)  
+ return(renamed_inh)
 }
 
 all_variants$real_mode_of_inheritance_in_case<-
@@ -187,7 +186,7 @@ write_tsv(x=VUS, file="VUS.tsv")
 ```
 
 
-```{r make_case_novel_list, include=FALSE}
+```{r make_case_novel_list, include=TRUE}
 solved_w_novel<-(diagnostic_vars %>% 
   filter(candidate==TRUE) )$case_ID_paper
 
